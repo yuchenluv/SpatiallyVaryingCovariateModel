@@ -1,1 +1,1 @@
-# Spatially_Varying_Covariate_Model
+# Spatially Varying Covariate Model
