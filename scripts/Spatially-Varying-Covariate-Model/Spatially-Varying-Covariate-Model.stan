@@ -32,8 +32,8 @@ data {
   int<lower=1> n_station;
   int<lower=1> n_obs;
   vector[2] X[n_station]; // locations, longitude & latitude
-  matrix[n_obs, n_station] y;// observations of rainfall, indexed by [time, location]
-  vector[n_obs] x; // covariates, currently just using logCO2
+  matrix[n_obs, n_station] y; // observations of rainfall, indexed by [time, location]
+  vector[n_obs] x; // covariates, currently just using logCO2 anomalies
 }
 
 parameters{
@@ -86,7 +86,7 @@ model{
     for (j in 1:n_station){
       mu[i, j] = mu0[j] + x[i] * mu_beta[j];
       sigma[i, j] = exp(logs0[j] + x[i] * logs_beta[j]);
-      if (y[i, j] > 0){
+      if (y[i, j] > 0){ // filter out missing values
         y[i, j] ~ gev(mu[i, j], sigma[i, j], xi);
       }
     }

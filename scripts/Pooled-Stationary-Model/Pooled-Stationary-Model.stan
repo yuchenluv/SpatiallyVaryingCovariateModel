@@ -37,10 +37,6 @@ data {
 }
 
 parameters{
-  // mean for multivariate normal distribution
-  // real<lower=0> mu_m;
-  // real logs_m;
-  
   // co-regionalization parameters, coefficients for the latent GP
   real mu_w;
   real logs_w;
@@ -66,8 +62,6 @@ model{
   
   mu_w ~ std_normal();
   logs_w ~ std_normal();
-  // mu_m ~ normal(0, 5);
-  // logs_m ~ std_normal();
   xi ~ normal(0, 0.5);
   rho ~ gamma(5, 1);
   alpha ~ inv_gamma(5, 5);

@@ -1,5 +1,5 @@
 ---
-title: "plot results in Julia"
+title: "cross validation"
 jupyter: julia-1.9
 execute:
   cache: true
@@ -13,13 +13,12 @@ Load in packages
 #| code-fold: true
 using CairoMakie
 using CSV
-using DataFrames
-using Distributions
-using DrWatson
 using GeoJSON
 using GeoMakie
+using DataFrames
+using Distributions
 using HTTP
-# using JSON
+using JSON
 using Plots;
 ```
 
@@ -58,12 +57,18 @@ log_CO2_2022 = log_CO2[length(log_CO2)]
 log_CO2_1940 = log_CO2[52];
 ```
 
+Stations for all the subsets of cross-validation
+
+```{julia}
+points_dfs = [raw_data_df_shuffled[37:181, :], vcat(raw_data_df_shuffled[1:36, :], raw_data_df_shuffled[73:181, :]), vcat(raw_data_df_shuffled[1:72, :], raw_data_df_shuffled[109:181, :]), vcat(raw_data_df_shuffled[1:108, :], raw_data_df_shuffled[145:181, :]), raw_data_df_shuffled[1:144, :], raw_data_df_shuffled]
+```
+
 ## Map of number of observations
 
 ```{julia}
 # number of observations
-p_n_obs = map_points(raw_stations_shuffled, raw_stations_shuffled[:, :n_obs], "observed years", (30, 120), :matter, "", (1000, 300))
-# save(plotsdir("1d/raw_data_nobs_all.png"), p_n_obs)
+p_n_obs = map_points(raw_data_df, raw_data_df[:, :n_obs], "observed years", (30, 120), :matter, "", (1000, 300))
+save(plotsdir("1d/raw_data_nobs_all.png"), p_n_obs)
 ```
 
 ```{julia}

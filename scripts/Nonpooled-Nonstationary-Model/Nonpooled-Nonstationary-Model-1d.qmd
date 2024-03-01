@@ -1,11 +1,9 @@
 ---
-title: "precipitation models"
+title: "Nonpooled Nonstationary Model"
 format: html
 ---
 
-This file compares the different precipitation models, including various stationary and nonstationary models
-
-Firstly load the necessary packages
+Load the necessary packages
 
 ```{r}
 #| label: load-packages
@@ -23,35 +21,30 @@ options(mc.cores = parallel::detectCores())
 # Useful library for plotting:
 library(bayesplot)
 library(ggplot2)
-
-# for elevation extraction
-library(elevatr)
-library(progress)
 ```
 
-Then read precipitation and climate covariate data
-Precipitation data is from daily GHCN (inches/day), filtering gauge stations with more than 60 (will change this) years of data available
+Read precipitation and climate covariate data
 
 ```{r}
 #| label: read raw data
 #| include: false
-data = read.csv("/Users/yl238/Documents/GitHub/HoustonPrecipitation/data/processed/raw_1d/GHCN_daily_30y.csv") # all the daily precipitation data
-stations = read.csv("/Users/yl238/Documents/GitHub/HoustonPrecipitation/data/processed/raw_1d/GHCN_stations_30y.csv")
-prcp = data[, 5:length(data)-3]
+data = read.csv("../../data/processed/raw_1d/GHCN_daily_30y.csv") # AMS data
+stations = read.csv("../../data/processed/raw_1d/GHCN_stations_30y.csv") # station inventory
+
+prcp = data[, 3:length(data)-1]
 prcp[is.na(prcp)] <- -99 # change NA to negative values, could be detected in r stan
-prcp_raw = prcp
-prcp = as.matrix(prcp/25.4)
+prcp = as.matrix(prcp/25.4) # mm to inches
+
 n_station = dim(prcp)[2] # number of synthetic stations
-n_obs = dim(prcp)[1] # number of obs per station
+n_obs = dim(prcp)[1] # number of years
 lons = stations[, 3]
 lats = stations[, 2]
 X = cbind(lons, lats) # coordinates
 
-# climate covariates
-SST_GOM = data[, length(data)]
-log_CO2 = data[, length(data)-1]
-NINO34 = data[, length(data)-2]
+log_CO2 = data[, length(data)] # CO2 covariate
 ```
+
+Shuffle stations to create subsets for cross-validation
 
 ```{r}
 # random shuffle the station inventory
@@ -60,75 +53,6 @@ sequence = sample(nrow(stations))
 stations_shuffled = stations[sequence, ]
 prcp_shuffled = prcp[, sequence]
 # 36, 36, 36, 36, 37
-stations1 = stations_shuffled[-(1:36), ]
-prcp1 = prcp_shuffled[, -(1:36)]
-lons1 = stations1[, 3]
-lats1 = stations1[, 2]
-X1 = cbind(lons1, lats1)
-
-stations2 = stations_shuffled[-(37:72), ]
-prcp2 = prcp_shuffled[, -(37:72)]
-lons2 = stations2[, 3]
-lats2 = stations2[, 2]
-X2 = cbind(lons2, lats2)
-
-stations3 = stations_shuffled[-(73:108), ]
-prcp3 = prcp_shuffled[, -(73:108)]
-lons3 = stations3[, 3]
-lats3 = stations3[, 2]
-X3 = cbind(lons3, lats3)
-
-stations4 = stations_shuffled[-(109:144), ]
-prcp4 = prcp_shuffled[, -(109:144)]
-lons4 = stations4[, 3]
-lats4 = stations4[, 2]
-X4 = cbind(lons4, lats4)
-
-stations5 = stations_shuffled[-(145:181), ]
-prcp5 = prcp_shuffled[, -(145:181)]
-lons5 = stations5[, 3]
-lats5 = stations5[, 2]
-X5 = cbind(lons5, lats5)
-
-# write.csv(stations_shuffled, "/Users/yl238/Documents/GitHub/HoustonPrecipitation/data/processed/raw_1d/stations_shuffled_30y.csv")
-prcp_raw_shuffled = prcp_raw[, sequence]
-write.csv(prcp_raw_shuffled, "/Users/yl238/Documents/GitHub/HoustonPrecipitation/data/processed/raw_1d/prcp_shuffled_30y.csv")
-```
-
-number of available data for each station
-
-```{r}
-get_num_year <- function(n_station, prcp){
-  num_years_data = numeric(n_station)
-  for (i in 1:n_station){
-    prcp_i = prcp[ , i]
-    num_years_data[i] = length(prcp_i[prcp_i>0])
-  }
-  return (num_years_data)
-}
-
-map_params <- function(data, lons, lats, limit_low, limit_high){
-  d = data.frame(longitude = lons, latitude = lats, z = data)
-  return (ggplot(data = d, mapping = aes(x = longitude, y = latitude)) + 
-            geom_point(aes(colour = z), shape = 19, size = 3) + 
-            scale_color_gradient(low="lightblue1", high="deepskyblue4", 
-                                  space ="Lab",
-                                  limits = c(limit_low, limit_high)))
-}
-
-num_years_data = get_num_year(n_station, prcp)
-num_years_shuffled = get_num_year(n_station, prcp_shuffled)
-```
-
-save some data in csv file
-
-```{r}
-# get a csv file with number of observations
-raw_data_map = data.frame(lon = lons, lat = lats, n_obs = num_years_data)
-write.csv(raw_data_map, "/Users/yl238/Documents/GitHub/HoustonPrecipitation/data/processed/raw_1d/raw_data_map_30y.csv")
-
-raw_data_map_shuffled = data.frame(lon = stations_shuffled[, 3], lat = stations_shuffled[, 2], n_obs = num_years_shuffled)
-write.csv(raw_data_map_shuffled, "/Users/yl238/Documents/GitHub/HoustonPrecipitation/data/processed/raw_1d/raw_data_map_shuffled_30y.csv")
 ```
 
 Functions for MAP and MCMC simulations
@@ -169,214 +93,27 @@ MCMC_fit <- function(model, data, init_list){
 
 MAP and MCMC runs (5000 iterations 4 chains)
 
-pooled stationary model
-
 ```{r}
-prcp_i = prcp5
-X_i = X5
-dat = list(n_station = dim(prcp_i)[2],
-           n_obs = n_obs,
-           X = X_i,
-           y = prcp_i)
-
-model_stationary_coGP = stan_model("stationary_model/stationary_coGP.stan")
-stationary_MAP = MAP_fit(model_stationary_coGP, dat)
-init_list_stationary = as.list(stationary_MAP$par)
-stationary_MCMC = MCMC_fit(model_stationary_coGP, dat, init_list_stationary)
-saveRDS(stationary_MCMC, "../../data/processed/1d_results/stationary_MCMC12.Rds")
-```
-
-non-pooled nonstationary model
-
-```{r}
-prcp_i = prcp
-X_i = X
-dat = list(n_station = dim(prcp_i)[2],
-           n_obs = n_obs,
-           X = X_i,
-           y = prcp_i,
-           x = log_CO2)
-
-model_nonstationary_nonpooled = stan_model("nonstationary_model/nonstationary_nonpooled.stan")
-nonstationary_MAP = MAP_fit(model_nonstationary_nonpooled, dat)
-init_list_nonstationary = as.list(nonstationary_MAP$par)
-nonstationary_MCMC = MCMC_fit(model_nonstationary_nonpooled, dat, init_list_nonstationary)
-saveRDS(nonstationary_MCMC, "../../data/processed/1d_results/nonstationary_nonpooled_MCMC7.Rds")
-# write.csv(nonstationary_MAP$par,file="draft_MAP.csv")
-```
-
-```{r}
-model_nonstationary_single_location = stan_model("nonstationary_model/nonstationary_single_location.stan")
-n_s = dim(prcp)[2]
-nonstationary_nonstationary_single_location_posterior = matrix(0, nrow = 10000, nc = 5*n_s)
-
-for (i in 1:n_s){
-  prcp_i = prcp[, i]
-  dat = list(n_obs = n_obs,
-             y = prcp_i,
-             x = log_CO2)
-  nonstationary_single_location_MAP = MAP_fit(model_nonstationary_single_location, dat)
-  init_list_nonstationary_single_location = as.list(nonstationary_single_location_MAP$par)
-  nonstationary_single_location_MCMC = MCMC_fit(model_nonstationary_single_location, dat, init_list_nonstationary_single_location)
+model_N = stan_model("Nonpooled-Nonstationary-Model.stan")
+model_N_posterior = matrix(0, nrow = 10000, nc = 5*n_station)
+for (i in 1:n_station){
+  prcp_i = prcp_shuffled[, i]
+  data_N = list(n_obs = n_obs,
+                y = prcp_i,
+                x = log_CO2)
   
-  nonstationary_nonstationary_single_location_posterior[ , i] = unlist(rstan::extract(nonstationary_single_location_MCMC, paste("mu0", sep = "")))
-  nonstationary_nonstationary_single_location_posterior[ , n_s+i] = unlist(rstan::extract(nonstationary_single_location_MCMC, paste("logs0", sep = "")))
-  nonstationary_nonstationary_single_location_posterior[ , n_s*2+i] = unlist(rstan::extract(nonstationary_single_location_MCMC, paste("xi", sep = "")))
-  nonstationary_nonstationary_single_location_posterior[ , n_s*3+i] = unlist(rstan::extract(nonstationary_single_location_MCMC, paste("mu_beta", sep = "")))
-  nonstationary_nonstationary_single_location_posterior[ , n_s*4+i] = unlist(rstan::extract(nonstationary_single_location_MCMC, paste("logs_beta", sep = "")))
+  model_N_MAP = MAP_fit(model_N, data_N)
+  init_list_model_N = as.list(model_N_MAP$par)
+  model_N_MCMC = MCMC_fit(model_N, data_N, init_list_model_N)
+  
+  model_N_posterior[ , i] = unlist(rstan::extract(model_N_MCMC, paste("mu0", sep = "")))
+  model_N_posterior[ , n_station+i] = unlist(rstan::extract(model_N_MCMC, paste("logs0", sep = "")))
+  model_N_posterior[ , n_station*2+i] = unlist(rstan::extract(model_N_MCMC, paste("xi", sep = "")))
+  model_N_posterior[ , n_station*3+i] = unlist(rstan::extract(model_N_MCMC, paste("mu_beta", sep = "")))
+  model_N_posterior[ , n_station*4+i] = unlist(rstan::extract(model_N_MCMC, paste("logs_beta", sep = "")))
 }
-```
-```{r}
-write.csv(nonstationary_nonstationary_single_location_posterior, "../../data/processed/1d_results/nonstationary_posterior_single_location.csv")
-```
-co-regionalized GP nonstationary model
-
-```{r}
-# nonstationary_coGP_MCMC1 = nonstationary_coGP_MCMC # simulating alpha and rho, 1000*4
-# nonstationary_coGP_MCMC2 = nonstationary_coGP_MCMC # simulating rho, 1000*4, alpha = 1
-# nonstationary_coGP_MCMC3 = nonstationary_coGP_MCMC # simulating rho, 1000*4, alpha = 1, positive w
-# nonstationary_coGP_MCMC4 = nonstationary_coGP_MCMC # simulating alpha and rho, 1000*4, positive w
-# nonstationary_coGP_MCMC5 = nonstationary_coGP_MCMC # simulating alpha and rho, 1000*4, positive w, with logs_m
-# nonstationary_coGP_MCMC6 = nonstationary_coGP_MCMC # simulating alpha and rho, 1000*4, positive w, with all m
 ```
 
 ```{r}
-# input data
-prcp_i = prcp3
-X_i = X3
-dat = list(n_station = dim(prcp_i)[2],
-           n_obs = n_obs,
-           X = X_i,
-           y = prcp_i,
-           x = log_CO2)
-
-model_nonstationary_coGP = stan_model("nonstationary_model/nonstationary_coGP.stan")
-nonstationary_coGP_MAP = MAP_fit(model_nonstationary_coGP, dat)
-init_list_nonstationary_coGP = as.list(nonstationary_coGP_MAP$par)
-nonstationary_coGP_MCMC = MCMC_fit(model_nonstationary_coGP, dat, init_list_nonstationary_coGP)
-saveRDS(nonstationary_coGP_MCMC, "../../data/processed/1d_results/nonstationary_coGP_30y10.Rds")
+write.csv(nonstationary_nonstationary_single_location_posterior, "../../data/processed/1d_results/model_N_posterior.csv")
 ```
-
-Load previous results (if MCMC was done before)
-
-```{r}
-stationary_coGP_MCMC7 = readRDS("../../data/processed/1d_results/stationary_MCMC7.Rds") # simulating alpha and rho, 5000*4, positive w, all 181 stations
-stationary_coGP_MCMC8 = readRDS("../../data/processed/1d_results/stationary_MCMC8.Rds") # simulating alpha and rho, 5000*4, positive w, subset 1
-stationary_coGP_MCMC9 = readRDS("../../data/processed/1d_results/stationary_MCMC9.Rds") # simulating alpha and rho, 5000*4, positive w, subset 2
-stationary_coGP_MCMC10 = readRDS("../../data/processed/1d_results/stationary_MCMC10.Rds") # simulating alpha and rho, 5000*4, positive w, subset 3
-stationary_coGP_MCMC11 = readRDS("../../data/processed/1d_results/stationary_MCMC11.Rds") # simulating alpha and rho, 5000*4, positive w, subset 4
-stationary_coGP_MCMC12 = readRDS("../../data/processed/1d_results/stationary_MCMC12.Rds") # simulating alpha and rho, 5000*4, positive w, subset 5
-```
-
-```{r}
-nonstationary_nonpooled_MCMC7 = readRDS("../../data/processed/1d_results/nonstationary_nonpooled_MCMC7.Rds") # simulating alpha and rho, 5000*4, positive w, all 181 stations
-nonstationary_nonpooled_MCMC8 = readRDS("../../data/processed/1d_results/nonstationary_nonpooled_MCMC8.Rds") # simulating alpha and rho, 5000*4, positive w, subset 1
-nonstationary_nonpooled_MCMC9 = readRDS("../../data/processed/1d_results/nonstationary_nonpooled_MCMC9.Rds") # simulating alpha and rho, 5000*4, positive w, subset 2
-nonstationary_nonpooled_MCMC10 = readRDS("../../data/processed/1d_results/nonstationary_nonpooled_MCMC10.Rds") # simulating alpha and rho, 5000*4, positive w, subset 3
-nonstationary_nonpooled_MCMC11 = readRDS("../../data/processed/1d_results/nonstationary_nonpooled_MCMC11.Rds") # simulating alpha and rho, 5000*4, positive w, subset 4
-nonstationary_nonpooled_MCMC12 = readRDS("../../data/processed/1d_results/nonstationary_nonpooled_MCMC12.Rds") # simulating alpha and rho, 5000*4, positive w, subset 5
-```
-
-```{r}
-nonstationary_coGP_MCMC7 = readRDS("../../data/processed/1d_results/nonstationary_coGP_30y7.Rds") # simulating alpha and rho, 5000*4, positive w, all 181 stations
-nonstationary_coGP_MCMC8 = readRDS("../../data/processed/1d_results/nonstationary_coGP_30y8.Rds") # simulating alpha and rho, 5000*4, positive w, subset 1
-nonstationary_coGP_MCMC9 = readRDS("../../data/processed/1d_results/nonstationary_coGP_30y9.Rds") # simulating alpha and rho, 5000*4, positive w, subset 2
-nonstationary_coGP_MCMC10 = readRDS("../../data/processed/1d_results/nonstationary_coGP_30y10.Rds") # simulating alpha and rho, 5000*4, positive w, subset 3
-nonstationary_coGP_MCMC11 = readRDS("../../data/processed/1d_results/nonstationary_coGP_30y11.Rds") # simulating alpha and rho, 5000*4, positive w, subset 4
-nonstationary_coGP_MCMC12 = readRDS("../../data/processed/1d_results/nonstationary_coGP_30y12.Rds") # simulating alpha and rho, 5000*4, positive w, subset 5
-```
-
-Export MCMC results to be plotted in Julia
-
-```{r}
-extract_MCMC <- function(MCMC_posterior_all, variable, station_i){
-  return (unlist(rstan::extract(MCMC_posterior_all, paste(variable, "[", station_i, "]", sep = ""))))
-}
-```
-
-for the pooled stationary model
-
-```{r}
-prcp_i = prcp5
-stationary_MCMC = stationary_coGP_MCMC12
-
-n_s = dim(prcp_i)[2]
-
-stationary_pooled_posterior = matrix(0, nrow = 10000, nc = 5+2*n_s)
-
-variables1 = c("mu_w", "logs_w", "rho", "alpha")
-
-for (i in 1:length(variables1)){
-  stationary_pooled_posterior[ , i] = unlist(rstan::extract(stationary_MCMC, paste(variables1[i], sep = "")))
-}
-for (i in 1:n_s){
-  stationary_pooled_posterior[ , length(variables1)+i] = extract_MCMC(stationary_MCMC, "mu", i)
-}
-for (i in 1:n_s){
-  stationary_pooled_posterior[ , length(variables1)+n_s+i] = extract_MCMC(stationary_MCMC, "logs", i)
-}
-stationary_pooled_posterior[ , length(variables1)+n_s*2+1] = unlist(rstan::extract(stationary_MCMC, paste("xi", sep = "")))
-
-stationary_pooled_posterior = as.data.frame(stationary_pooled_posterior)
-write.csv(stationary_pooled_posterior, "../../data/processed/1d_results/stationary_pooled_posterior_sub5.csv")
-```
-
-for the nonpooled nonstationary model
-
-```{r}
-prcp_i = prcp5
-nonstationary_MCMC = nonstationary_nonpooled_MCMC12
-
-n_s = dim(prcp_i)[2]
-
-nonstationary_nonpooled_posterior = matrix(0, nrow = 10000, nc = 5*n_s)
-
-for (i in 1:n_s){
-  nonstationary_nonpooled_posterior[ , i] = extract_MCMC(nonstationary_MCMC, "mu0", i)
-}
-for (i in 1:n_s){
-  nonstationary_nonpooled_posterior[ , n_s+i] = extract_MCMC(nonstationary_MCMC, "logs0", i)
-}
-for (i in 1:n_s){
-  nonstationary_nonpooled_posterior[ , n_s*2+i] = extract_MCMC(nonstationary_MCMC, "xi", i)
-}
-for (i in 1:n_s){
-  nonstationary_nonpooled_posterior[ , n_s*3+i] = extract_MCMC(nonstationary_MCMC, "mu_beta", i)
-}
-for (i in 1:n_s){
-  nonstationary_nonpooled_posterior[ , n_s*4+i] = extract_MCMC(nonstationary_MCMC, "logs_beta", i)
-}
-nonstationary_nonpooled_posterior = as.data.frame(nonstationary_nonpooled_posterior)
-write.csv(nonstationary_nonpooled_posterior, "../../data/processed/1d_results/nonstationary_nonpooled_posterior_sub5.csv")
-```
-
-for the nonstationary multivariate GP model
-
-```{r}
-prcp_i = prcp5
-nonstationary_multiGP_MCMC = nonstationary_coGP_MCMC12
-
-n_s = dim(prcp_i)[2]
-
-nonstationary_multiGP_posterior = matrix(0, nrow = 10000, nc = 7+n_s*4)
-variables2 = c("rho", "alpha", "mu_w", "logs_w", "mu0_w", "logs_w", "xi")
-
-for (i in 1:7){
-  nonstationary_multiGP_posterior[ , i] = unlist(rstan::extract(nonstationary_multiGP_MCMC, paste(variables2[i], sep = "")))
-}
-for (i in 1:n_s){
-  nonstationary_multiGP_posterior[ , 7+i] = extract_MCMC(nonstationary_multiGP_MCMC, "mu_beta", i)
-}
-for (i in 1:n_s){
-  nonstationary_multiGP_posterior[ , 7+n_s+i] = extract_MCMC(nonstationary_multiGP_MCMC, "logs_beta", i)
-}
-for (i in 1:n_s){
-  nonstationary_multiGP_posterior[ , 7+n_s*2+i] = extract_MCMC(nonstationary_multiGP_MCMC, "mu0", i)
-}
-for (i in 1:n_s){
-  nonstationary_multiGP_posterior[ , 7+n_s*3+i] = extract_MCMC(nonstationary_multiGP_MCMC, "logs0", i)
-}
-nonstationary_multiGP_posterior = as.data.frame(nonstationary_multiGP_posterior)
-write.csv(nonstationary_multiGP_posterior, "/Users/yl238/Documents/GitHub/HoustonPrecipitation/data/processed/1d_results/nonstationary_coGP_posterior_sub5.csv")
-```
-

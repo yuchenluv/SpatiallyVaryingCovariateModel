@@ -31,7 +31,7 @@ Referenced from https://mc-stan.org/docs/2_19/stan-users-guide/simulating-from-a
 data {
   int<lower=1> n_obs;
   vector[n_obs] y; // observations of rainfall for one station
-  vector[n_obs] x; // covariates, currently just one covariate
+  vector[n_obs] x; // covariates, currently just logCO2 anomalies
 }
 
 parameters{
