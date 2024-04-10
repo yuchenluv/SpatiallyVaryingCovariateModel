@@ -96,11 +96,15 @@ MAP and MCMC runs (5000 iterations 4 chains)
 ```{r}
 model_S = stan_model("Pooled-Stationary-Model.stan")
 shuffled_index = c(1, 36, 37, 72, 73, 108, 109, 144, 145, 181, 1, 181) # simple way to get each subset data
-for (i in 2:2){
+for (i in 1:5){
   i_start = shuffled_index[i*2 - 1]
   i_end = shuffled_index[i*2]
   stations_i = stations_shuffled[-(i_start:i_end), ]
   prcp_i = prcp_shuffled[, -(i_start:i_end)]
+  if (i == 6){
+    stations_i = stations_shuffled
+    prcp_i = prcp_shuffled
+  }
   lons_i = stations_i[, 3]
   lats_i = stations_i[, 2]
   X_i = cbind(lons_i, lats_i)
@@ -122,12 +126,12 @@ for (i in 2:2){
 Load previous results (if MCMC was done before)
 
 ```{r}
-model_S_MCMC1 = readRDS("../../data/processed/1d_results/model_S_MCMC1.Rds") # subset 1
-model_S_MCMC2 = readRDS("../../data/processed/1d_results/model_S_MCMC2.Rds") # subset 2
-model_S_MCMC3 = readRDS("../../data/processed/1d_results/model_S_MCMC3.Rds") # subset 3
-model_S_MCMC4 = readRDS("../../data/processed/1d_results/model_S_MCMC4.Rds") # subset 4
-model_S_MCMC5 = readRDS("../../data/processed/1d_results/model_S_MCMC5.Rds") # subset 5
-model_S_MCMC6 = readRDS("../../data/processed/1d_results/model_S_MCMC6.Rds") # all stations
+model_S_MCMC1 = readRDS("../../data/processed/1d_results/model_S_1.Rds") # subset 1
+model_S_MCMC2 = readRDS("../../data/processed/1d_results/model_S_2.Rds") # subset 2
+model_S_MCMC3 = readRDS("../../data/processed/1d_results/model_S_3.Rds") # subset 3
+model_S_MCMC4 = readRDS("../../data/processed/1d_results/model_S_4.Rds") # subset 4
+model_S_MCMC5 = readRDS("../../data/processed/1d_results/model_S_5.Rds") # subset 5
+model_S_MCMC6 = readRDS("../../data/processed/1d_results/model_S_6.Rds") # all stations
 ```
 
 Export MCMC results to be plotted in Julia

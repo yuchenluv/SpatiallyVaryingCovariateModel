@@ -48,7 +48,7 @@ model{
   vector[n_obs] mu;
   vector[n_obs] sigma;
   
-  mu0 ~ normal(0, 5);
+  mu0 ~ normal(5, 5);
   logs0 ~ std_normal();
   
   mu_beta ~ std_normal();

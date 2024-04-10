@@ -44,6 +44,35 @@ X = cbind(lons, lats) # coordinates
 log_CO2 = data[, length(data)] # CO2 covariate
 ```
 
+```{r}
+lats_grids = c(min(lats), 29, 29.5, 30, 30.5, max(lats))
+lons_grids = c(min(lons), -94.9, -92.8, -90.7, -88.6, max(lons))
+
+stations1 = stations[!((stations$lon >= lons_grids[1] & stations$lon <= lons_grids[2] & stations$lat >= lats_grids[1] & stations$lat <= lats_grids[2]) | (stations$lon >= lons_grids[2] & stations$lon <= lons_grids[3] & stations$lat >= lats_grids[2] & stations$lat <= lats_grids[3]) | (stations$lon >= lons_grids[3] & stations$lon <= lons_grids[4] & stations$lat >= lats_grids[3] & stations$lat <= lats_grids[4])) | (stations$lon >= lons_grids[4] & stations$lon <= lons_grids[5] & stations$lat >= lats_grids[4] & stations$lat <= lats_grids[5]) | (stations$lon >= lons_grids[5] & stations$lon <= lons_grids[6] & stations$lat >= lats_grids[5] & stations$lat <= lats_grids[6]), ]
+
+index_sub1 = which(stations$stnid %in% stations1[,1])
+prcp1 = prcp_shuffled[, index_sub1]
+lons1 = stations1[, 3]
+lats1 = stations1[, 2]
+X1 = cbind(lons1, lats1)
+prcp1[112:122, ] = -99/25.4
+
+write.csv(index_sub1, file = "../../data/processed/1d_results/sub1_index.csv", row.names = FALSE)
+```
+
+```{r}
+plot(x = lons, y = lats, pch = 19)
+abline(v = lons_grids[2])
+abline(v = lons_grids[3])
+abline(v = lons_grids[4])
+abline(v = lons_grids[5])
+
+abline(h = lats_grids[2])
+abline(h = lats_grids[3])
+abline(h = lats_grids[4])
+abline(h = lats_grids[5])
+```
+
 Shuffle stations to create subsets for cross-validation
 
 ```{r}
@@ -115,5 +144,5 @@ for (i in 1:n_station){
 ```
 
 ```{r}
-write.csv(nonstationary_nonstationary_single_location_posterior, "../../data/processed/1d_results/model_N_posterior.csv")
+write.csv(model_N_posterior, "../../data/processed/1d_results/model_N_posterior.csv")
 ```

@@ -127,21 +127,9 @@ MCMC_fit <- function(model, data, init_list){
 MAP and MCMC runs (5000 iterations 4 chains)
 
 ```{r}
-# nonstationary_coGP_MCMC1 = nonstationary_coGP_MCMC # simulating alpha and rho, 1000*4
-# nonstationary_coGP_MCMC2 = nonstationary_coGP_MCMC # simulating rho, 1000*4, alpha = 1
-# nonstationary_coGP_MCMC3 = nonstationary_coGP_MCMC # simulating rho, 1000*4, alpha = 1, positive w
-# nonstationary_coGP_MCMC4 = nonstationary_coGP_MCMC # simulating alpha and rho, 1000*4, positive w
-# nonstationary_coGP_MCMC5 = nonstationary_coGP_MCMC # simulating alpha and rho, 1000*4, positive w, with logs_m
-# nonstationary_coGP_MCMC6 = nonstationary_coGP_MCMC # simulating alpha and rho, 1000*4, positive w, with all m
-# file_path = paste("../../data/processed/1d_results/model_full_", as.character(2), ".Rds", sep = "")
-# saveRDS(model_full_MCMC, file_path)
-stations_shuffled
-```
-
-```{r}
 model_full = stan_model("Spatially-Varying-Covariate-Model.stan")
 shuffled_index = c(1, 36, 37, 72, 73, 108, 109, 144, 145, 181, 1, 181) # simple way to get each subset data
-for (i in 6:6){
+for (i in 1:6){
   i_start = shuffled_index[i*2 - 1]
   i_end = shuffled_index[i*2]
   stations_i = stations_shuffled[-(i_start:i_end), ]
@@ -169,15 +157,30 @@ for (i in 6:6){
 }
 ```
 
+```{r}
+model_full = stan_model("Spatially-Varying-Covariate-Model.stan")
+data_full = list(n_station = dim(prcp)[2],
+                 n_obs = n_obs,
+                 X = X,
+                 y = prcp,
+                 x = log_CO2)
+model_full_MAP = MAP_fit(model_full, data_full)
+init_list_model_full = as.list(model_full_MAP$par)
+model_full_MCMC = MCMC_fit(model_full, data_full, init_list_model_full)
+```
+
+```{r}
+file_path = "../../data/processed/1d_results/model_full_all_4rho.Rds"
+saveRDS(model_full_MCMC, file_path)
+model_full_MCMC
+```
+
 Load previous results (if MCMC was done before)
 
 ```{r}
-Model_full_MCMC1 = readRDS("../../data/processed/1d_results/model_full_1.Rds") # subset 1
-Model_full_MCMC2 = readRDS("../../data/processed/1d_results/model_full_2.Rds") # subset 2
-Model_full_MCMC3 = readRDS("../../data/processed/1d_results/model_full_3.Rds") # subset 3
-Model_full_MCMC4 = readRDS("../../data/processed/1d_results/model_full_4.Rds") # subset 4
-Model_full_MCMC5 = readRDS("../../data/processed/1d_results/model_full_5.Rds") # subset 5
-Model_full_MCMC6 = readRDS("../../data/processed/1d_results/model_full_6.Rds") # all stations
+# Model_full_MCMC = readRDS("../../data/processed/1d_results/model_full_all_2rho.Rds") # all stations
+mcmc_trace(Model_full_MCMC, pars = "logs_w")
+Model_full_MCMC
 ```
 
 Export MCMC results to be plotted in Julia
@@ -189,17 +192,17 @@ extract_MCMC <- function(MCMC_posterior_all, variable, station_i){
 ```
 
 ```{r}
-model_full_MCMC_all = c(model_full_MCMC1, model_full_MCMC2, model_full_MCMC3, model_full_MCMC4, model_full_MCMC5, model_full_MCMC6)
 num_stations_subsets = c(145, 145, 145, 145, 144, 181)
 variables_full = c("rho", "alpha", "mu_w", "logs_w", "mu0_w", "logs_w", "xi")
-
-for (i in 1:6){
-  n_s = num_stations_subsets[i]
-  model_full_MCMC_i = model_full_MCMC_all[i]
+for (i in 1:1){
+  file_path_MCMC = paste("../../data/processed/1d_results/model_full_grids", as.character(i), ".Rds", sep = "")
+  model_full_MCMC_i = readRDS(file_path_MCMC)
+  # n_s = num_stations_subsets[i]
+  n_s = dim(prcp1)[2]
   model_full_posterior = matrix(0, nrow = 10000, nc = 7+n_s*4)
-  
+
   for (v in 1:length(variables_full)){
-    model_full_posterior[ , i] = unlist(rstan::extract(model_full_MCMC_i, paste(variables_full[v], sep = "")))
+    model_full_posterior[ , v] = unlist(rstan::extract(model_full_MCMC_i, paste(variables_full[v], sep = "")))
   }
   for (s in 1:n_s){
     model_full_posterior[ , length(variables_full)+s] = extract_MCMC(model_full_MCMC_i, "mu_beta", s)
@@ -213,10 +216,38 @@ for (i in 1:6){
   for (s in 1:n_s){
     model_full_posterior[ , length(variables_full)+n_s*3+s] = extract_MCMC(model_full_MCMC_i, "logs0", s)
   }
-  
+
   model_full_posterior = as.data.frame(model_full_posterior)
-  file_path = paste("../../data/processed/1d_results/model_full_posterior_sub", as.character(i), ".csv", sep = "")
+  file_path = paste("../../data/processed/1d_results/model_full_posterior_grids", as.character(i), ".csv", sep = "")
   write.csv(model_full_posterior, file_path)
 }
 ```
 
+```{r}
+variables_full = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu0_rho", "mu0_alpha", "logs0_rho", "logs0_alpha", "xi")
+# variables_full = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu_w", "mu0_w", "logs_w", "logs0_w", "xi")
+file_path_MCMC = "../../data/processed/1d_results/model_full_all_4rho.Rds"
+model_full_MCMC_i = readRDS(file_path_MCMC)
+n_s = dim(prcp)[2]
+model_full_posterior = matrix(0, nrow = 10000, nc = 9+n_s*4)
+
+for (v in 1:length(variables_full)){
+  model_full_posterior[ , v] = unlist(rstan::extract(model_full_MCMC_i, paste(variables_full[v], sep = "")))
+}
+for (s in 1:n_s){
+  model_full_posterior[ , length(variables_full)+s] = extract_MCMC(model_full_MCMC_i, "mu_beta", s)
+}
+for (s in 1:n_s){
+  model_full_posterior[ , length(variables_full)+n_s+s] = extract_MCMC(model_full_MCMC_i, "logs_beta", s)
+}
+for (s in 1:n_s){
+  model_full_posterior[ , length(variables_full)+n_s*2+s] = extract_MCMC(model_full_MCMC_i, "mu0", s)
+}
+for (s in 1:n_s){
+  model_full_posterior[ , length(variables_full)+n_s*3+s] = extract_MCMC(model_full_MCMC_i, "logs0", s)
+}
+
+model_full_posterior = as.data.frame(model_full_posterior)
+file_path = "../../data/processed/1d_results/model_full_posterior_all_4rho.csv"
+write.csv(model_full_posterior, file_path)
+```

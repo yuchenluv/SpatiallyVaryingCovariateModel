@@ -42,10 +42,12 @@ parameters{
   real<lower=0> mu_alpha; // kernel variance
   real<lower=0> logs_rho; // kernel length scale
   real<lower=0> logs_alpha; // kernel variance
-  real<lower=0> mu0_rho; // kernel length scale
-  real<lower=0> mu0_alpha; // kernel variance
-  real<lower=0> logs0_rho; // kernel length scale
-  real<lower=0> logs0_alpha; // kernel variance
+  
+  // co-regionalization parameters, coefficients for the latent GP
+  real<lower=0> mu_w;
+  real<lower=0> mu0_w;
+  real<lower=0> logs_w;
+  real<lower=0> logs0_w;
   
   real<lower=0> xi; // GEV shape parameter, same for all locations
   
@@ -62,12 +64,6 @@ model{
   matrix[n_station, n_station] logs_K_xi; // kernel
   matrix[n_station, n_station] logs_K = gp_exponential_cov(X, logs_alpha, logs_rho);
   
-  matrix[n_station, n_station] mu0_K_xi; // kernel
-  matrix[n_station, n_station] mu0_K = gp_exponential_cov(X, mu0_alpha, mu0_rho);
-  
-  matrix[n_station, n_station] logs0_K_xi; // kernel
-  matrix[n_station, n_station] logs0_K = gp_exponential_cov(X, logs0_alpha, logs0_rho);
-  
   matrix[n_obs, n_station] mu;
   matrix[n_obs, n_station] sigma;
   
@@ -80,29 +76,23 @@ model{
     logs_K[n, n] = logs_K[n, n] + 10e-6;
   logs_K_xi = cholesky_decompose(logs_K);
   
-  for (n in 1:n_station)
-    mu0_K[n, n] = mu0_K[n, n] + 10e-6;
-  mu0_K_xi = cholesky_decompose(mu0_K);
-  
-  for (n in 1:n_station)
-    logs0_K[n, n] = logs0_K[n, n] + 10e-6;
-  logs0_K_xi = cholesky_decompose(logs0_K);
+  mu_w ~ std_normal();
+  mu0_w ~ std_normal();
+  logs_w ~ normal(0, 0.5);
+  logs0_w ~ normal(0, 0.5);
   
   mu_rho ~ gamma(5, 1);
   mu_alpha ~ inv_gamma(5, 5);
+  
   logs_rho ~ gamma(5, 1);
   logs_alpha ~ inv_gamma(5, 5);
-  mu0_rho ~ gamma(5, 1);
-  mu0_alpha ~ inv_gamma(5, 5);
-  logs0_rho ~ gamma(5, 1);
-  logs0_alpha ~ inv_gamma(5, 5);
   
   xi ~ normal(0, 0.5);
   
-  mu_beta ~ multi_normal_cholesky(rep_vector(0, n_station), mu_K_xi);
-  mu0 ~ multi_normal_cholesky(rep_vector(0, n_station), mu0_K_xi);
-  logs_beta ~ multi_normal_cholesky(rep_vector(0, n_station), logs_K_xi);
-  logs0 ~ multi_normal_cholesky(rep_vector(0, n_station), logs0_K_xi);
+  mu_beta ~ multi_normal_cholesky(rep_vector(0, n_station), mu_w * mu_K_xi);
+  mu0 ~ multi_normal_cholesky(rep_vector(0, n_station), mu0_w * mu_K_xi);
+  logs_beta ~ multi_normal_cholesky(rep_vector(0, n_station), logs_w * logs_K_xi);
+  logs0 ~ multi_normal_cholesky(rep_vector(0, n_station), logs0_w * logs_K_xi);
 
   for (i in 1:n_obs){
     for (j in 1:n_station){
