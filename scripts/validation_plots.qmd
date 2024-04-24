@@ -7,7 +7,7 @@ execute:
 
 Mainly plot for cross-validation results
 
-## Setup
+# Setup
 
 Load in packages
 
@@ -22,6 +22,180 @@ using GeoJSON
 using GeoMakie
 using HTTP
 using Plots;
+```
+
+load commonly used functions
+
+```{julia}
+include("util.jl")
+include("plot_util.jl");
+```
+
+# Load data
+
+```{julia}
+# all the raw data, including years, prcp and covariates
+raw_data_all = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_daily_30y.csv")))
+
+years = raw_data_all[:, 1]
+
+# CO2 climate covariate
+lnCO2 = DataFrame(CSV.File(datadir("processed/raw_1d/lnCO2.csv")))
+lnCO2 = vcat(lnCO2[:, :log_CO2], log(525))
+log_CO2 = lnCO2 .- mean(lnCO2[1:(length(lnCO2)-1)])
+log_CO2_2022 = log_CO2[length(log_CO2)-1]
+log_CO2_1940 = log_CO2[52]
+log_CO2_2005 = log_CO2[117]
+
+# raw precipiation intensity
+# missing values as negative
+# raw_data_all = coalesce.(raw_data_all, -99)
+raw_prcp = raw_data_all[:, 2:size(raw_data_all)[2]-1]
+
+# stations
+raw_stations = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_stations_30y.csv")))
+
+# total number of stations
+n_stations = size(raw_stations)[1];
+```
+
+Some general variables
+
+```{julia}
+# number of MCMC simulations
+n_sim = 10000
+```
+
+# spatially cross-validation for the full model
+
+## number of observations for each subset
+
+```{julia}
+# get the number of observations for each station
+obs_counts = [count(!ismissing, raw_prcp[!, col]) for col in names(raw_prcp)]
+raw_stations.n_obs = obs_counts;
+```
+
+## Read in MCMC results
+
+```{julia}
+# rho_all, alpha_all, mu_w_all, logs_w_all, μ0_w_all, logσ0_w_all, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_shareRho1("processed/1d_results/model_full_posterior_all_1rho.csv", n_stations)
+
+# mu_rho, mu_alpha, logs_rho, logs_alpha, mu_w, mu0_w, logs_w, logs0_w, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_shareRho2("processed/1d_results/model_full_posterior_all_2rho.csv", n_stations)
+
+mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_posterior_all_4rho.csv", n_stations)
+
+sub1_index = DataFrame(CSV.File(datadir("processed/1d_results/sub1_index.csv")))[:, 1]
+mu_rho_sub1, mu_alpha_sub1, logs_rho_sub1, logs_alpha_sub1, mu0_rho_sub1, mu0_alpha_sub1, logs0_rho_sub1, logs0_alpha_sub1, xi_sub1, μ_beta_sub1, logσ_beta_sub1, μ0_sub1, logσ0_sub1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids1.csv", length(sub1_index))
+
+sub2_index = DataFrame(CSV.File(datadir("processed/1d_results/sub2_index.csv")))[:, 1]
+mu_rho_sub2, mu_alpha_sub2, logs_rho_sub2, logs_alpha_sub2, mu0_rho_sub2, mu0_alpha_sub2, logs0_rho_sub2, logs0_alpha_sub2, xi_sub2, μ_beta_sub2, logσ_beta_sub2, μ0_sub2, logσ0_sub2 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids2.csv", length(sub2_index))
+
+sub3_index = DataFrame(CSV.File(datadir("processed/1d_results/sub3_index.csv")))[:, 1]
+mu_rho_sub3, mu_alpha_sub3, logs_rho_sub3, logs_alpha_sub3, mu0_rho_sub3, mu0_alpha_sub3, logs0_rho_sub3, logs0_alpha_sub3, xi_sub3, μ_beta_sub3, logσ_beta_sub3, μ0_sub3, logσ0_sub3 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids3.csv", length(sub3_index))
+
+sub4_index = DataFrame(CSV.File(datadir("processed/1d_results/sub4_index.csv")))[:, 1]
+mu_rho_sub4, mu_alpha_sub4, logs_rho_sub4, logs_alpha_sub4, mu0_rho_sub4, mu0_alpha_sub4, logs0_rho_sub4, logs0_alpha_sub4, xi_sub4, μ_beta_sub4, logσ_beta_sub4, μ0_sub4, logσ0_sub4 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids4.csv", length(sub4_index))
+
+sub5_index = DataFrame(CSV.File(datadir("processed/1d_results/sub5_index.csv")))[:, 1]
+mu_rho_sub5, mu_alpha_sub5, logs_rho_sub5, logs_alpha_sub5, mu0_rho_sub5, mu0_alpha_sub5, logs0_rho_sub5, logs0_alpha_sub5, xi_sub5, μ_beta_sub5, logσ_beta_sub5, μ0_sub5, logσ0_sub5 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids5.csv", length(sub5_index))
+```
+
+### Out of sample predictability (need a concise code)
+
+```{julia}
+# to select out of sample stations
+# 18, 22, 36, 74, 104
+# lats_grids = [minimum(raw_stations.lat), 29, 29.5, 30, 30.5, maximum(raw_stations.lat)]
+# lons_grids = [minimum(raw_stations.lon), -94.9, -92.8, -90.7, -88.6, maximum(raw_stations.lon)]
+# raw_stations_draft = raw_stations
+# raw_stations_draft.row_number = 1:nrow(raw_stations_draft)
+# raw_stations_draft[(lons_grids[5] .< raw_stations_draft.lon .< lons_grids[6]) .& (lats_grids[5] .< raw_stations_draft.lat .< lats_grids[6]), :]
+
+OFS_s1 = [93, 7, 8, 1]
+OFS_s2 = [50, 2, 99]
+OFS_s3 = [90, 22]
+OFS_s4 = [94, 21, 13]
+OFS_s5 = [88, 33, 10, 9]
+```
+
+```{julia}
+x_old_sub2 = Matrix(raw_stations[sub2_index, 2:3])'
+```
+
+```{julia}
+gev_all1 = hcat([get_gev.(log_CO2_2005, μ0_all[:, s], μ_beta_all[:, s], logσ0_all[:, s], logσ_beta_all[:, s], xi_all) for s in OFS_s1]...)
+gev_all2 = hcat([get_gev.(log_CO2_2005, μ0_all[:, s], μ_beta_all[:, s], logσ0_all[:, s], logσ_beta_all[:, s], xi_all) for s in OFS_s2]...)
+gev_all3 = hcat([get_gev.(log_CO2_2005, μ0_all[:, s], μ_beta_all[:, s], logσ0_all[:, s], logσ_beta_all[:, s], xi_all) for s in OFS_s3]...)
+gev_all4 = hcat([get_gev.(log_CO2_2005, μ0_all[:, s], μ_beta_all[:, s], logσ0_all[:, s], logσ_beta_all[:, s], xi_all) for s in OFS_s4]...)
+gev_all5 = hcat([get_gev.(log_CO2_2005, μ0_all[:, s], μ_beta_all[:, s], logσ0_all[:, s], logσ_beta_all[:, s], xi_all) for s in OFS_s5]...)
+```
+
+```{julia}
+# haven't checked the results here
+
+# in the function, i is the simluation number (in total n_sim)
+# modeling with subset 2
+gev_dist_new(i, x, lons_new, lats_new, x_old, mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi, mu_beta, logs_beta, mu0, logs0) = GP_dist(mu_rho[i], mu_alpha[i], logs_rho[i], logs_alpha[i], mu0_rho[i], mu0_alpha[i], logs0_rho[i], logs0_alpha[i], xi[i], collect(mu_beta[i, :]), collect(logs_beta[i, :]), collect(mu0[i, :]), collect(logs0[i, :]), x_old, lons_new, lats_new, x)
+
+x_old_sub1 = Matrix(raw_stations[sub1_index, 2:3])'
+gev_sub1 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub1, mu_rho_sub1, mu_alpha_sub1, logs_rho_sub1, logs_alpha_sub1, mu0_rho_sub1, mu0_alpha_sub1, logs0_rho_sub1, logs0_alpha_sub1, xi_sub1, μ_beta_sub1, logσ_beta_sub1, μ0_sub1, logσ0_sub1) for i = 1:n_sim] for s in OFS_s1]...)
+
+x_old_sub2 = Matrix(raw_stations[sub2_index, 2:3])'
+gev_sub2 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub2, mu_rho_sub2, mu_alpha_sub2, logs_rho_sub2, logs_alpha_sub2, mu0_rho_sub2, mu0_alpha_sub2, logs0_rho_sub2, logs0_alpha_sub2, xi_sub2, μ_beta_sub2, logσ_beta_sub2, μ0_sub2, logσ0_sub2) for i = 1:n_sim] for s in OFS_s2]...)
+
+x_old_sub3 = Matrix(raw_stations[sub3_index, 2:3])'
+gev_sub3 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub3, mu_rho_sub3, mu_alpha_sub3, logs_rho_sub3, logs_alpha_sub3, mu0_rho_sub3, mu0_alpha_sub3, logs0_rho_sub3, logs0_alpha_sub3, xi_sub3, μ_beta_sub3, logσ_beta_sub3, μ0_sub3, logσ0_sub3) for i = 1:n_sim] for s in OFS_s3]...)
+
+x_old_sub4 = Matrix(raw_stations[sub4_index, 2:3])'
+gev_sub4 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub4, mu_rho_sub4, mu_alpha_sub4, logs_rho_sub4, logs_alpha_sub4, mu0_rho_sub4, mu0_alpha_sub4, logs0_rho_sub4, logs0_alpha_sub4, xi_sub4, μ_beta_sub4, logσ_beta_sub4, μ0_sub4, logσ0_sub4) for i = 1:n_sim] for s in OFS_s4]...)
+
+x_old_sub5 = Matrix(raw_stations[sub5_index, 2:3])'
+gev_sub5 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub5, mu_rho_sub5, mu_alpha_sub5, logs_rho_sub5, logs_alpha_sub5, mu0_rho_sub5, mu0_alpha_sub5, logs0_rho_sub5, logs0_alpha_sub5, xi_sub5, μ_beta_sub5, logσ_beta_sub5, μ0_sub5, logσ0_sub5) for i = 1:n_sim] for s in OFS_s5]...)
+```
+
+```{julia}
+function rl_boxplot_data(i_s, i_m, dists, n_sim, p)
+    # i_s: station index
+    # i_m: model index
+    # dists: estimated gev distributions
+    # n_sim: number of total simulations
+    rl_boxplot = rand(n_sim, 3)
+    rl_boxplot[:, 1] = quantile.(dists, p)
+    rl_boxplot[:, 2] .= i_s
+    rl_boxplot[:, 3] .= i_m
+    return rl_boxplot
+end
+
+# vcat(gev_sub2[:, 1]...)
+rl_boxplot_data_sub1 = vcat([rl_boxplot_data(i, 2, vcat(gev_sub1[:, i]...), 10000, 0.99) for i in 1:length(OFS_s1)]...)
+rl_boxplot_data_1 = vcat([rl_boxplot_data(i, 1, gev_all1[:, i], 10000, 0.99) for i in 1:length(OFS_s1)]...)
+
+rl_boxplot_data_sub2 = vcat([rl_boxplot_data(i+length(OFS_s1), 2, vcat(gev_sub2[:, i]...), 10000, 0.99) for i in 1:length(OFS_s2)]...)
+rl_boxplot_data_2 = vcat([rl_boxplot_data(i+length(OFS_s1), 1, gev_all2[:, i], 10000, 0.99) for i in 1:length(OFS_s2)]...)
+
+rl_boxplot_data_sub3 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2), 2, vcat(gev_sub1[:, i]...), 10000, 0.99) for i in 1:length(OFS_s3)]...)
+rl_boxplot_data_3 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2), 1, gev_all1[:, i], 10000, 0.99) for i in 1:length(OFS_s3)]...)
+
+rl_boxplot_data_sub4 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3), 2, vcat(gev_sub1[:, i]...), 10000, 0.99) for i in 1:length(OFS_s4)]...)
+rl_boxplot_data_4 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3), 1, gev_all1[:, i], 10000, 0.99) for i in 1:length(OFS_s4)]...)
+
+rl_boxplot_data_sub5 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3)+length(OFS_s4), 2, vcat(gev_sub1[:, i]...), 10000, 0.99) for i in 1:length(OFS_s5)]...)
+rl_boxplot_data_5 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3)+length(OFS_s4), 1, gev_all1[:, i], 10000, 0.99) for i in 1:length(OFS_s5)]...)
+
+rl_boxplot_data_all = vcat(rl_boxplot_data_sub1, rl_boxplot_data_1, rl_boxplot_data_sub2, rl_boxplot_data_2, rl_boxplot_data_sub3, rl_boxplot_data_3, rl_boxplot_data_sub4, rl_boxplot_data_4, rl_boxplot_data_sub5, rl_boxplot_data_5)
+```
+
+```{julia}
+# using CairoMakie
+
+CairoMakie.boxplot(
+    round.(Int, rl_boxplot_data_all[:, 2]),
+    rl_boxplot_data_all[:, 1],
+    dodge = round.(Int, rl_boxplot_data_all[:, 3]),
+    show_notch = true,
+    color = round.(Int, rl_boxplot_data_all[:, 3]),
+)
 ```
 
 ## Quantiles

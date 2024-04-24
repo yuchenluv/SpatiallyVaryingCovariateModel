@@ -1,99 +1,6 @@
 """
-Common functions for use
+Common functions for calculations
 """
-
-"""Functions for maps"""
-
-# Function for single scatter plots
-function map_points(point_df, var_mean, label_name, range, colorscheme, title_name, res)
-    # point_df: stations with coordinates
-    # var_mean: values to be mapped
-    # res: resolution of the plot
-    states = download(
-        "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
-    )
-    states_geo = GeoJSON.read(read(states, String))
-
-    Δ = 0.25
-    lonlims = (minimum(point_df[!, :lon]) - Δ, maximum(point_df[!, :lon]) + Δ)
-    latlims = (minimum(point_df[!, :lat]) - Δ, maximum(point_df[!, :lat]) + Δ)
-
-    f = Figure(resolution=res, fontsize=22)
-    ax = GeoAxis(
-        f[1, 1];
-        dest="+proj=eqc",
-        title=title_name,
-        lonlims=lonlims,
-        latlims=latlims
-    )
-
-    poly!(ax, states_geo; color=:white, strokewidth=1)
-
-    h1 = CairoMakie.scatter!(ax, point_df[!, :lon], point_df[!, :lat]; color=var_mean, colormap=colorscheme, colorrange=range, markersize=20, strokewidth=0, strokecolor=:grey17)
-
-    Colorbar(f[1, 2], h1, label=label_name)
-    poly!(ax, states_geo, edgecolor=:gray, strokewidth=1, color=:transparent)
-    return f
-end
-
-
-# Function for subplots of mapped points
-function map_points_subplots(points_df, all_data, colorschemes, rows, cols, row_names, res, row_hs, title_names, ranges; diff_coord=false, bar_all=true, diff_colscheme=false, bar_name=false)
-    # bar_all: if would need color bar for all subplots
-    # diff_colscheme: if different color schemes for the color bars
-    # point_df: stations with coordinates
-    # all_data: a vector with all the plotting vectors
-    # diff_coord: if plotting for the same points
-    states = download(
-        "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
-    )
-    states_geo = GeoJSON.read(read(states, String))
-
-    Δ = 0.25
-
-    f = Figure(resolution=res, fontsize=22, layout=GridLayout(row_heights=row_hs))
-
-    point_df = points_df
-    colorscheme = colorschemes
-
-    for i in 1:length(all_data)
-        if diff_colscheme == true
-            colorscheme = colorschemes[i]
-        end
-        if diff_coord == true
-            point_df = points_df[i]
-        end
-        lonlims = (minimum(point_df[!, :lon]) - Δ, maximum(point_df[!, :lon]) + Δ)
-        latlims = (minimum(point_df[!, :lat]) - Δ, maximum(point_df[!, :lat]) + Δ)
-        ax = GeoAxis(
-            f[rows[i], cols[i]];
-            dest="+proj=eqc",
-            title=title_names[i],
-            lonlims=lonlims,
-            latlims=latlims,
-            ylabel=row_names[i]
-        )
-        poly!(ax, states_geo; color=:white, strokewidth=1)
-        h1 = CairoMakie.scatter!(ax, point_df[!, :lon], point_df[!, :lat]; color=all_data[i], colormap=colorscheme, colorrange=ranges[i], markersize=15, strokewidth=0, strokecolor=:grey17)
-
-        if bar_name == false
-            b_name = ""
-        else
-            b_name = bar_name[i]
-        end
-
-        if bar_all == true
-            Colorbar(f[rows[i], cols[i]+1], h1, label=b_name, height=Relative(0.9))
-        else
-            if cols[i] == maximum(cols)
-                Colorbar(f[rows[i], cols[i]+1], h1, label=b_name, height=Relative(0.9))
-            end
-        end
-
-        poly!(ax, states_geo, edgecolor=:gray, strokewidth=1, color=:transparent)
-    end
-    return f
-end
 
 """functions to read MCMC csv files saved from r"""
 
@@ -102,22 +9,15 @@ function read_MCMC_results_S(file_path, n_stations)
     stationary_pooled_posterior = DataFrame(CSV.File(datadir(file_path)))
     select!(stationary_pooled_posterior, Not(:Column1))
 
-    # mu_w = stationary_pooled_posterior[:, 1]
-    # logs_w = stationary_pooled_posterior[:, 2]
-    # rho = stationary_pooled_posterior[:, 3]
-    # alpha = stationary_pooled_posterior[:, 4]
-    # xi = stationary_pooled_posterior[:, 5]
-    # mu = stationary_pooled_posterior[:, 6:5+n_stations]
-    # logs = stationary_pooled_posterior[:, 6+n_stations:5+n_stations*2]
-    mu_w = stationary_pooled_posterior[:, 1]
-    logs_w = stationary_pooled_posterior[:, 2]
-    rho = stationary_pooled_posterior[:, 3]
-    alpha = stationary_pooled_posterior[:, 4]
-    mu = stationary_pooled_posterior[:, 5:4+n_stations]
-    logs = stationary_pooled_posterior[:, 5+n_stations:4+n_stations*2]
-    xi = stationary_pooled_posterior[:, 5+n_stations*2]
+    mu_rho = stationary_pooled_posterior[:, 1]
+    mu_alpha = stationary_pooled_posterior[:, 2]
+    logs_rho = stationary_pooled_posterior[:, 3]
+    logs_alpha = stationary_pooled_posterior[:, 4]
+    xi = stationary_pooled_posterior[:, 5]
+    mu = stationary_pooled_posterior[:, 6:5+n_stations]
+    logs = stationary_pooled_posterior[:, 6+n_stations:5+n_stations*2]
 
-    return mu_w, logs_w, rho, alpha, mu, logs, xi
+    return mu_rho, mu_alpha, logs_rho, logs_alpha, xi, mu, logs
 end
 
 # nonpooled nonstationary model
@@ -194,6 +94,38 @@ function read_MCMC_results_full_diffRho(file_path, n_stations)
     μ0 = nonstationary_multiGP_posterior[:, 10+n_stations*2:9+n_stations*3]
     logσ0 = nonstationary_multiGP_posterior[:, 10+n_stations*3:9+n_stations*4]
     return mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi, μ_beta, logσ_beta, μ0, logσ0
+end
+
+"""Functions to get the simulated distributions for points"""
+
+# Pooled Stationary Model
+function get_dist_MCMC_S(station_i, mu, logs, xi)
+    mu_k = mu[:, station_i]
+    logs_k = logs[:, station_i]
+    return GeneralizedExtremeValue.(mu_k, exp.(logs_k), xi)
+end
+
+# Nonpooled Nonstationary Model
+function get_dist_MCMC_N(station_i, μ_beta, logσ_beta, μ0_posterior, logσ0_posterior, ξ_posterior, x)
+    μ_beta_k = μ_beta[:, station_i]
+    logσ_beta_k = logσ_beta[:, station_i]
+    μ0_k = μ0_posterior[:, station_i]
+    logσ0_k = logσ0_posterior[:, station_i]
+    ξ_k = ξ_posterior[:, station_i]
+    μ_k = μ0_k .+ x .* μ_beta_k
+    σ_k = exp.(logσ0_k .+ x .* logσ_beta_k)
+    return GeneralizedExtremeValue.(μ_k, σ_k, ξ_k)
+end
+
+# Spatially Varying Covariate Model
+function get_dist_MCMC_full(station_i, μ_beta, logσ_beta, μ0_posterior, logσ0_posterior, ξ_posterior, x)
+    μ_beta_k = μ_beta[:, station_i]
+    logσ_beta_k = logσ_beta[:, station_i]
+    μ0_k = μ0_posterior[:, station_i]
+    logσ0_k = logσ0_posterior[:, station_i]
+    μ_k = μ0_k .+ x .* μ_beta_k
+    σ_k = exp.(logσ0_k .+ x .* logσ_beta_k)
+    return GeneralizedExtremeValue.(μ_k, σ_k, ξ_posterior)
 end
 
 """Functions for return level estimates"""
@@ -290,18 +222,66 @@ end
 
 using GaussianProcesses
 
-function GP_param(rho, alpha, w, var_sim, x_old, lons_new, lats_new)
-    gp = GPE(x_old, var_sim, MeanZero(), Mat12Iso(log(rho), log(sqrt(alpha^2 * w))), 1e-6)
-    mean_new, cov_new = predict_y(gp, hcat(lons_new, lats_new)')
+function GP_param(rho, alpha, var_sim, x_old, lons_new, lats_new)
+    # alpha here is actually estimated as std
+    gp = GPE(x_old, var_sim, MeanZero(), Mat12Iso(log(rho), log(alpha)), 1e-6)
+    mean_new, cov_new = predict_y(gp, hcat(lats_new, lons_new)')
     return mean_new
 end
 
 # interprete results from one simulation
-function GP_dist(rho, alpha, mu_w, logs_w, mu0_w, logs0_w, xi, mu_beta, logs_beta, mu0, logs0, x_old, lons_new, lats_new, x)
-    mu0_new = GP_param(rho, alpha, mu0_w, mu0, x_old, lons_new, lats_new)
-    mu_beta_new = GP_param(rho, alpha, mu_w, mu_beta, x_old, lons_new, lats_new)
-    logs0_new = GP_param(rho, alpha, logs0_w, logs0, x_old, lons_new, lats_new)
-    logs_beta_new = GP_param(rho, alpha, logs_w, logs_beta, x_old, lons_new, lats_new)
+function GP_dist(mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi, mu_beta, logs_beta, mu0, logs0, x_old, lons_new, lats_new, x)
+    mu0_new = GP_param(mu0_rho, mu0_alpha, mu0, x_old, lons_new, lats_new)
+    mu_beta_new = GP_param(mu_rho, mu_alpha, mu_beta, x_old, lons_new, lats_new)
+    logs0_new = GP_param(logs0_rho, logs0_alpha, logs0, x_old, lons_new, lats_new)
+    logs_beta_new = GP_param(logs_rho, logs_alpha, logs_beta, x_old, lons_new, lats_new)
     return get_gev.(x, mu0_new, mu_beta_new, logs0_new, logs_beta_new, xi)
+end
+
+
+"""web scrape Atlas 14 estimates"""
+# Function to extract and parse the quantiles from the fetched data
+function parse_quantiles_from_url(url)
+    # Fetching data from the URL
+    response = HTTP.get(url, require_ssl_verification=false)
+    data = String(response.body)
+
+    # Extracting the quantiles data
+    start_idx = findfirst("quantiles = ", data)
+    end_idx = findnext(";", start_idx) - 1
+    quantiles_str = data[start_idx:end_idx]
+
+    # Cleaning up the quantiles string for JSON parsing
+    quantiles_str = replace(quantiles_str, "quantiles = " => "")
+    quantiles_str = replace(quantiles_str, "'" => "\"")
+
+    # Parsing the JSON string to a Julia array
+    quantiles_array = JSON.parse(quantiles_str)
+
+    # Converting the string values to floats
+    quantiles_floats = map(x -> parse(Float64, x), quantiles_array)
+
+    return quantiles_floats
+end
+
+function get_Atlas14(lat, lon, row, col)
+    # row is linked with durations
+    url = "https://hdsc.nws.noaa.gov/cgi-bin/hdsc/new/cgi_readH5.py?lat=" * lat * "&lon=" * lon * "&type=pf&data=depth&units=english&series=pds"
+    a = DataFrame(CSV.File(download(url)))[1, 1]
+    a = a[15:length(a)-2]
+    a = replace(a, "'" => "")
+    b = split(a, "], [")
+    c1 = [parse(Float64, s) for s in split(b[row], ", ")][col]
+    return c1
+end
+
+function get_Atlas14_IDF(lat, lon)
+    url = "https://hdsc.nws.noaa.gov/cgi-bin/hdsc/new/cgi_readH5.py?lat=" * lat * "&lon=" * lon * "&type=pf&data=depth&units=english&series=pds"
+    a = DataFrame(CSV.File(download(url)))[1, 1]
+    a = a[15:length(a)-2]
+    a = replace(a, "'" => "")
+    b = split(a, "], [")
+    rls = [[parse(Float64, s) for s in split(b[10], ", ")][i] for i in [1, 2, 3, 4, 5, 6, 7, 8, 9]]
+    return rls
 end
 

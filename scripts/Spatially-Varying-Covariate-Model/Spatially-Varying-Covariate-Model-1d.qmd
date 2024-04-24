@@ -44,48 +44,55 @@ X = cbind(lons, lats) # coordinates
 log_CO2 = data[, length(data)] # CO2 covariate
 ```
 
-Create the 5 subsets for cross-validation
+Subset the stations
 
 ```{r}
-# random shuffle the station inventory
-set.seed(42)
-sequence = sample(nrow(stations))
-stations_shuffled = stations[sequence, ]
-prcp_shuffled = prcp[, sequence]
-# 36, 36, 36, 36, 37
+lats_grids = c(min(lats), 29, 29.5, 30, 30.5, max(lats))
+lons_grids = c(min(lons), -94.9, -92.8, -90.7, -88.6, max(lons))
 
-stations1 = stations_shuffled[-(1:36), ]
-prcp1 = prcp_shuffled[, -(1:36)]
-lons1 = stations1[, 3]
-lats1 = stations1[, 2]
-X1 = cbind(lons1, lats1)
+# plot the subsets
+plot(x = lons, y = lats, pch = 19)
+abline(v = lons_grids[2])
+abline(v = lons_grids[3])
+abline(v = lons_grids[4])
+abline(v = lons_grids[5])
 
-stations2 = stations_shuffled[-(37:72), ]
-prcp2 = prcp_shuffled[, -(37:72)]
-lons2 = stations2[, 3]
-lats2 = stations2[, 2]
-X2 = cbind(lons2, lats2)
+abline(h = lats_grids[2])
+abline(h = lats_grids[3])
+abline(h = lats_grids[4])
+abline(h = lats_grids[5])
+```
 
-stations3 = stations_shuffled[-(73:108), ]
-prcp3 = prcp_shuffled[, -(73:108)]
-lons3 = stations3[, 3]
-lats3 = stations3[, 2]
-X3 = cbind(lons3, lats3)
+```{r}
+# subset 1
+stations1 = stations[!((stations$lon >= lons_grids[1] & stations$lon <= lons_grids[2] & stations$lat >= lats_grids[1] & stations$lat <= lats_grids[2]) | (stations$lon >= lons_grids[2] & stations$lon <= lons_grids[3] & stations$lat >= lats_grids[2] & stations$lat <= lats_grids[3]) | (stations$lon >= lons_grids[3] & stations$lon <= lons_grids[4] & stations$lat >= lats_grids[3] & stations$lat <= lats_grids[4])) | (stations$lon >= lons_grids[4] & stations$lon <= lons_grids[5] & stations$lat >= lats_grids[4] & stations$lat <= lats_grids[5]) | (stations$lon >= lons_grids[5] & stations$lon <= lons_grids[6] & stations$lat >= lats_grids[5] & stations$lat <= lats_grids[6]), ]
 
-stations4 = stations_shuffled[-(109:144), ]
-prcp4 = prcp_shuffled[, -(109:144)]
-lons4 = stations4[, 3]
-lats4 = stations4[, 2]
-X4 = cbind(lons4, lats4)
+index_sub1 = which(stations$stnid %in% stations1[,1])
+write.csv(index_sub1, file = "../../data/processed/1d_results/sub1_index.csv", row.names = FALSE)
 
-stations5 = stations_shuffled[-(145:181), ]
-prcp5 = prcp_shuffled[, -(145:181)]
-lons5 = stations5[, 3]
-lats5 = stations5[, 2]
-X5 = cbind(lons5, lats5)
+# subset 2
+stations2 = stations[!((stations$lon >= lons_grids[2] & stations$lon <= lons_grids[3] & stations$lat >= lats_grids[1] & stations$lat <= lats_grids[2]) | (stations$lon >= lons_grids[3] & stations$lon <= lons_grids[4] & stations$lat >= lats_grids[2] & stations$lat <= lats_grids[3]) | (stations$lon >= lons_grids[4] & stations$lon <= lons_grids[5] & stations$lat >= lats_grids[3] & stations$lat <= lats_grids[4])) | (stations$lon >= lons_grids[5] & stations$lon <= lons_grids[6] & stations$lat >= lats_grids[4] & stations$lat <= lats_grids[5]) | (stations$lon >= lons_grids[1] & stations$lon <= lons_grids[2] & stations$lat >= lats_grids[5] & stations$lat <= lats_grids[6]), ]
 
-# write.csv(stations_shuffled, "../../data/processed/raw_1d/stations_shuffled_30y.csv")
-# write.csv(prcp_shuffled, "../../data/processed/raw_1d/prcp_shuffled_30y.csv")
+index_sub2 = which(stations$stnid %in% stations2[,1])
+write.csv(index_sub2, file = "../../data/processed/1d_results/sub2_index.csv", row.names = FALSE)
+
+# subset 3
+stations3 = stations[!((stations$lon >= lons_grids[3] & stations$lon <= lons_grids[4] & stations$lat >= lats_grids[1] & stations$lat <= lats_grids[2]) | (stations$lon >= lons_grids[4] & stations$lon <= lons_grids[5] & stations$lat >= lats_grids[2] & stations$lat <= lats_grids[3]) | (stations$lon >= lons_grids[5] & stations$lon <= lons_grids[6] & stations$lat >= lats_grids[3] & stations$lat <= lats_grids[4])) | (stations$lon >= lons_grids[1] & stations$lon <= lons_grids[2] & stations$lat >= lats_grids[4] & stations$lat <= lats_grids[5]) | (stations$lon >= lons_grids[2] & stations$lon <= lons_grids[3] & stations$lat >= lats_grids[5] & stations$lat <= lats_grids[6]), ]
+
+index_sub3 = which(stations$stnid %in% stations3[,1])
+write.csv(index_sub3, file = "../../data/processed/1d_results/sub3_index.csv", row.names = FALSE)
+
+# subset 4
+stations4 = stations[!((stations$lon >= lons_grids[4] & stations$lon <= lons_grids[5] & stations$lat >= lats_grids[1] & stations$lat <= lats_grids[2]) | (stations$lon >= lons_grids[5] & stations$lon <= lons_grids[6] & stations$lat >= lats_grids[2] & stations$lat <= lats_grids[3]) | (stations$lon >= lons_grids[1] & stations$lon <= lons_grids[2] & stations$lat >= lats_grids[3] & stations$lat <= lats_grids[4])) | (stations$lon >= lons_grids[2] & stations$lon <= lons_grids[3] & stations$lat >= lats_grids[4] & stations$lat <= lats_grids[5]) | (stations$lon >= lons_grids[3] & stations$lon <= lons_grids[4] & stations$lat >= lats_grids[5] & stations$lat <= lats_grids[6]), ]
+
+index_sub4 = which(stations$stnid %in% stations4[,1])
+write.csv(index_sub4, file = "../../data/processed/1d_results/sub4_index.csv", row.names = FALSE)
+
+# subset 5
+stations5 = stations[!((stations$lon >= lons_grids[5] & stations$lon <= lons_grids[6] & stations$lat >= lats_grids[1] & stations$lat <= lats_grids[2]) | (stations$lon >= lons_grids[1] & stations$lon <= lons_grids[2] & stations$lat >= lats_grids[2] & stations$lat <= lats_grids[3]) | (stations$lon >= lons_grids[2] & stations$lon <= lons_grids[3] & stations$lat >= lats_grids[3] & stations$lat <= lats_grids[4])) | (stations$lon >= lons_grids[3] & stations$lon <= lons_grids[4] & stations$lat >= lats_grids[4] & stations$lat <= lats_grids[5]) | (stations$lon >= lons_grids[4] & stations$lon <= lons_grids[5] & stations$lat >= lats_grids[5] & stations$lat <= lats_grids[6]), ]
+
+index_sub5 = which(stations$stnid %in% stations5[,1])
+write.csv(index_sub5, file = "../../data/processed/1d_results/sub5_index.csv", row.names = FALSE)
 ```
 
 Functions for MAP and MCMC simulations
@@ -127,42 +134,23 @@ MCMC_fit <- function(model, data, init_list){
 MAP and MCMC runs (5000 iterations 4 chains)
 
 ```{r}
-model_full = stan_model("Spatially-Varying-Covariate-Model.stan")
-shuffled_index = c(1, 36, 37, 72, 73, 108, 109, 144, 145, 181, 1, 181) # simple way to get each subset data
-for (i in 1:6){
-  i_start = shuffled_index[i*2 - 1]
-  i_end = shuffled_index[i*2]
-  stations_i = stations_shuffled[-(i_start:i_end), ]
-  prcp_i = prcp_shuffled[, -(i_start:i_end)]
-  if (i == 6){
-    stations_i = stations_shuffled
-    prcp_i = prcp_shuffled
-  }
-  lons_i = stations_i[, 3]
-  lats_i = stations_i[, 2]
-  X_i = cbind(lons_i, lats_i)
-  
-  data_full = list(n_station = dim(prcp_i)[2],
-                   n_obs = n_obs,
-                   X = X_i,
-                   y = prcp_i,
-                   x = log_CO2)
-  
-  model_full_MAP = MAP_fit(model_full, data_full)
-  init_list_model_full = as.list(model_full_MAP$par)
-  model_full_MCMC = MCMC_fit(model_full, data_full, init_list_model_full)
-  
-  file_path = paste("../../data/processed/1d_results/model_full_", as.character(i), ".Rds", sep = "")
-  saveRDS(model_full_MCMC, file_path)
-}
+index_i = index_sub3
+stations_i = stations3
+
+prcp_i = prcp[, index_i]
+lons_i = stations_i[, 3]
+lats_i = stations_i[, 2]
+X_i = cbind(lons_i, lats_i)
+
+prcp_i[112:122, ] = -99/25.4
 ```
 
 ```{r}
 model_full = stan_model("Spatially-Varying-Covariate-Model.stan")
-data_full = list(n_station = dim(prcp)[2],
+data_full = list(n_station = dim(prcp_i)[2],
                  n_obs = n_obs,
-                 X = X,
-                 y = prcp,
+                 X = X_i,
+                 y = prcp_i,
                  x = log_CO2)
 model_full_MAP = MAP_fit(model_full, data_full)
 init_list_model_full = as.list(model_full_MAP$par)
@@ -170,7 +158,7 @@ model_full_MCMC = MCMC_fit(model_full, data_full, init_list_model_full)
 ```
 
 ```{r}
-file_path = "../../data/processed/1d_results/model_full_all_4rho.Rds"
+file_path = "../../data/processed/1d_results/model_full_gridt1s3.Rds"
 saveRDS(model_full_MCMC, file_path)
 model_full_MCMC
 ```
@@ -179,8 +167,8 @@ Load previous results (if MCMC was done before)
 
 ```{r}
 # Model_full_MCMC = readRDS("../../data/processed/1d_results/model_full_all_2rho.Rds") # all stations
-mcmc_trace(Model_full_MCMC, pars = "logs_w")
-Model_full_MCMC
+# Model_full_MCMC
+mcmc_trace(model_full_MCMC, pars = "mu_alpha")
 ```
 
 Export MCMC results to be plotted in Julia
@@ -192,43 +180,11 @@ extract_MCMC <- function(MCMC_posterior_all, variable, station_i){
 ```
 
 ```{r}
-num_stations_subsets = c(145, 145, 145, 145, 144, 181)
-variables_full = c("rho", "alpha", "mu_w", "logs_w", "mu0_w", "logs_w", "xi")
-for (i in 1:1){
-  file_path_MCMC = paste("../../data/processed/1d_results/model_full_grids", as.character(i), ".Rds", sep = "")
-  model_full_MCMC_i = readRDS(file_path_MCMC)
-  # n_s = num_stations_subsets[i]
-  n_s = dim(prcp1)[2]
-  model_full_posterior = matrix(0, nrow = 10000, nc = 7+n_s*4)
-
-  for (v in 1:length(variables_full)){
-    model_full_posterior[ , v] = unlist(rstan::extract(model_full_MCMC_i, paste(variables_full[v], sep = "")))
-  }
-  for (s in 1:n_s){
-    model_full_posterior[ , length(variables_full)+s] = extract_MCMC(model_full_MCMC_i, "mu_beta", s)
-  }
-  for (s in 1:n_s){
-    model_full_posterior[ , length(variables_full)+n_s+s] = extract_MCMC(model_full_MCMC_i, "logs_beta", s)
-  }
-  for (s in 1:n_s){
-    model_full_posterior[ , length(variables_full)+n_s*2+s] = extract_MCMC(model_full_MCMC_i, "mu0", s)
-  }
-  for (s in 1:n_s){
-    model_full_posterior[ , length(variables_full)+n_s*3+s] = extract_MCMC(model_full_MCMC_i, "logs0", s)
-  }
-
-  model_full_posterior = as.data.frame(model_full_posterior)
-  file_path = paste("../../data/processed/1d_results/model_full_posterior_grids", as.character(i), ".csv", sep = "")
-  write.csv(model_full_posterior, file_path)
-}
-```
-
-```{r}
 variables_full = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu0_rho", "mu0_alpha", "logs0_rho", "logs0_alpha", "xi")
 # variables_full = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu_w", "mu0_w", "logs_w", "logs0_w", "xi")
-file_path_MCMC = "../../data/processed/1d_results/model_full_all_4rho.Rds"
+file_path_MCMC = "../../data/processed/1d_results/model_full_grids5.Rds"
 model_full_MCMC_i = readRDS(file_path_MCMC)
-n_s = dim(prcp)[2]
+n_s = dim(stations5)[1]
 model_full_posterior = matrix(0, nrow = 10000, nc = 9+n_s*4)
 
 for (v in 1:length(variables_full)){
@@ -248,6 +204,6 @@ for (s in 1:n_s){
 }
 
 model_full_posterior = as.data.frame(model_full_posterior)
-file_path = "../../data/processed/1d_results/model_full_posterior_all_4rho.csv"
+file_path = "../../data/processed/1d_results/model_full_grids5.csv"
 write.csv(model_full_posterior, file_path)
 ```

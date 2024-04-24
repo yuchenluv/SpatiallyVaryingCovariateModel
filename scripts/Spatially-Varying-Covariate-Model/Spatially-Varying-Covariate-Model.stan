@@ -29,23 +29,23 @@ functions{
 Referenced from https://mc-stan.org/docs/2_19/stan-users-guide/simulating-from-a-gaussian-process.html
 */
 data {
-  int<lower=1> n_station;
-  int<lower=1> n_obs;
+  int<lower=1> n_station; // number of stations
+  int<lower=1> n_obs; // number of years
   vector[2] X[n_station]; // locations, longitude & latitude
   matrix[n_obs, n_station] y; // observations of rainfall, indexed by [time, location]
   vector[n_obs] x; // covariates, currently just using logCO2 anomalies
 }
 
 parameters{
-  // parameters for the latent shared kernel
+  // kernel parameters
   real<lower=0> mu_rho; // kernel length scale
-  real<lower=0> mu_alpha; // kernel variance
+  real<lower=0> mu_alpha; // kernel std
   real<lower=0> logs_rho; // kernel length scale
-  real<lower=0> logs_alpha; // kernel variance
+  real<lower=0> logs_alpha; // kernel std
   real<lower=0> mu0_rho; // kernel length scale
-  real<lower=0> mu0_alpha; // kernel variance
+  real<lower=0> mu0_alpha; // kernel std
   real<lower=0> logs0_rho; // kernel length scale
-  real<lower=0> logs0_alpha; // kernel variance
+  real<lower=0> logs0_alpha; // kernel std
   
   real<lower=0> xi; // GEV shape parameter, same for all locations
   
@@ -56,16 +56,17 @@ parameters{
 }
 
 model{
-  matrix[n_station, n_station] mu_K_xi; // kernel
+  // gp_exponential_cov from https://mc-stan.org/math/group__opencl_gac47f7d0f97a1035236ac74de3b965020.html
+  matrix[n_station, n_station] mu_K_xi; // kernel for mu_beta
   matrix[n_station, n_station] mu_K = gp_exponential_cov(X, mu_alpha, mu_rho);
   
-  matrix[n_station, n_station] logs_K_xi; // kernel
+  matrix[n_station, n_station] logs_K_xi; // kernel for logs_beta
   matrix[n_station, n_station] logs_K = gp_exponential_cov(X, logs_alpha, logs_rho);
   
-  matrix[n_station, n_station] mu0_K_xi; // kernel
+  matrix[n_station, n_station] mu0_K_xi; // kernel for mu0
   matrix[n_station, n_station] mu0_K = gp_exponential_cov(X, mu0_alpha, mu0_rho);
   
-  matrix[n_station, n_station] logs0_K_xi; // kernel
+  matrix[n_station, n_station] logs0_K_xi; // kernel for logs0
   matrix[n_station, n_station] logs0_K = gp_exponential_cov(X, logs0_alpha, logs0_rho);
   
   matrix[n_obs, n_station] mu;

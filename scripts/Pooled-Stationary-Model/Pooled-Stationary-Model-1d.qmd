@@ -42,17 +42,10 @@ lats = stations[, 2]
 X = cbind(lons, lats) # coordinates
 
 log_CO2 = data[, length(data)] # CO2 covariate
-```
 
-Shuffle stations to create subsets for cross-validation
-
-```{r}
-# random shuffle the station inventory
-set.seed(42)
-sequence = sample(nrow(stations))
-stations_shuffled = stations[sequence, ]
-prcp_shuffled = prcp[, sequence]
-# 36, 36, 36, 36, 37
+# exculde 2000-2010
+prcp_t1 = prcp
+prcp_t1[112:122, ] = -99/25.4
 ```
 
 Functions for MAP and MCMC simulations
@@ -95,43 +88,23 @@ MAP and MCMC runs (5000 iterations 4 chains)
 
 ```{r}
 model_S = stan_model("Pooled-Stationary-Model.stan")
-shuffled_index = c(1, 36, 37, 72, 73, 108, 109, 144, 145, 181, 1, 181) # simple way to get each subset data
-for (i in 1:5){
-  i_start = shuffled_index[i*2 - 1]
-  i_end = shuffled_index[i*2]
-  stations_i = stations_shuffled[-(i_start:i_end), ]
-  prcp_i = prcp_shuffled[, -(i_start:i_end)]
-  if (i == 6){
-    stations_i = stations_shuffled
-    prcp_i = prcp_shuffled
-  }
-  lons_i = stations_i[, 3]
-  lats_i = stations_i[, 2]
-  X_i = cbind(lons_i, lats_i)
+data_S = list(n_station = dim(prcp)[2],
+              n_obs = n_obs,
+              X = X,
+              y = prcp_t1)
+model_S_MAP = MAP_fit(model_S, data_S)
+init_list_model_S = as.list(model_S_MAP$par)
+model_S_MCMC = MCMC_fit(model_S, data_S, init_list_model_S)
   
-  data_S = list(n_station = dim(prcp_i)[2],
-                n_obs = n_obs,
-                X = X_i,
-                y = prcp_i)
-  
-  model_S_MAP = MAP_fit(model_S, data_S)
-  init_list_model_S = as.list(model_S_MAP$par)
-  model_S_MCMC = MCMC_fit(model_S, data_S, init_list_model_S)
-  
-  file_path = paste("../../data/processed/1d_results/model_S_", as.character(i), ".Rds", sep = "")
-  saveRDS(model_S_MCMC, file_path)
-}
+file_path = "../../data/processed/1d_results/model_S_t1.Rds"
+saveRDS(model_S_MCMC, file_path)
 ```
 
 Load previous results (if MCMC was done before)
 
 ```{r}
-model_S_MCMC1 = readRDS("../../data/processed/1d_results/model_S_1.Rds") # subset 1
-model_S_MCMC2 = readRDS("../../data/processed/1d_results/model_S_2.Rds") # subset 2
-model_S_MCMC3 = readRDS("../../data/processed/1d_results/model_S_3.Rds") # subset 3
-model_S_MCMC4 = readRDS("../../data/processed/1d_results/model_S_4.Rds") # subset 4
-model_S_MCMC5 = readRDS("../../data/processed/1d_results/model_S_5.Rds") # subset 5
-model_S_MCMC6 = readRDS("../../data/processed/1d_results/model_S_6.Rds") # all stations
+# model_S_MCMC = readRDS("../../data/processed/1d_results/model_S_all.Rds")
+model_S_MCMC
 ```
 
 Export MCMC results to be plotted in Julia
@@ -143,25 +116,21 @@ extract_MCMC <- function(MCMC_posterior_all, variable, station_i){
 ```
 
 ```{r}
-model_S_MCMC_all = c(model_S_MCMC1, model_S_MCMC2, model_S_MCMC3, model_S_MCMC4, model_S_MCMC5, model_S_MCMC6)
-num_stations_subsets = c(145, 145, 145, 145, 144, 181)
-variables_S = c("mu_w", "logs_w", "rho", "alpha", "xi")
-for (i in 1:6){
-  n_s = num_stations_subsets[i]
-  model_S_MCMC_i = model_S_MCMC_all[i]
-  model_S_posterior = matrix(0, nrow = 10000, nc = 5+2*n_s)
+variables_S = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "xi")
+n_s = n_station
+model_S_MCMC_i = readRDS("../../data/processed/1d_results/model_S_all.Rds")
+model_S_posterior = matrix(0, nrow = 10000, nc = 5+2*n_s)
   
-  for (v in 1:length(variables_S)){
-    model_S_posterior[ , v] = unlist(rstan::extract(model_S_MCMC_i, paste(variables_S[v], sep = "")))
-  }
-  for (s in 1:n_s){
-    model_S_posterior[ , length(variables_S)+s] = extract_MCMC(model_S_MCMC_i, "mu", s)
-  }
-  for (s in 1:n_s){
-    model_S_posterior[ , length(variables_S)+n_s+s] = extract_MCMC(model_S_MCMC_i, "logs", s)
-  }
-  model_S_posterior = as.data.frame(model_S_posterior)
-  file_path = paste("../../data/processed/1d_results/model_S_posterior_sub", as.character(i), ".csv", sep = "")
-  write.csv(model_S_posterior, file_path)
+for (v in 1:length(variables_S)){
+  model_S_posterior[ , v] = unlist(rstan::extract(model_S_MCMC_i, paste(variables_S[v], sep = "")))
 }
+for (s in 1:n_s){
+  model_S_posterior[ , length(variables_S)+s] = extract_MCMC(model_S_MCMC_i, "mu", s)
+}
+for (s in 1:n_s){
+  model_S_posterior[ , length(variables_S)+n_s+s] = extract_MCMC(model_S_MCMC_i, "logs", s)
+}
+model_S_posterior = as.data.frame(model_S_posterior)
+file_path = "../../data/processed/1d_results/model_S_all"
+write.csv(model_S_posterior, file_path)
 ```

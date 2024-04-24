@@ -37,10 +37,12 @@ data {
 }
 
 parameters{
-  real<lower=0> mu_rho; // kernel length parameter for mu
-  real<lower=0> mu_alpha; // kernel std for the mu
-  real<lower=0> logs_rho; // kernel length parameter for logs
-  real<lower=0> logs_alpha; // kernel std for logs
+  // co-regionalization parameters, coefficients for the latent GP
+  real mu_w;
+  real logs_w;
+  
+  real<lower=0> rho; // kernel length parameter for the latent GP
+  real<lower=0> alpha; // kernel variance for the latent GP
   
   vector[n_station] mu;
   vector[n_station] logs;
@@ -49,29 +51,23 @@ parameters{
 }
 
 model{
-  matrix[n_station, n_station] mu_K_xi; // kernel
-  matrix[n_station, n_station] mu_K = gp_exponential_cov(X, mu_alpha, mu_rho);
-  
-  matrix[n_station, n_station] logs_K_xi; // kernel
-  matrix[n_station, n_station] logs_K = gp_exponential_cov(X, logs_alpha, logs_rho);
+  matrix[n_station, n_station] K_xi; // kernel
+  matrix[n_station, n_station] K = gp_exponential_cov(X, alpha, rho);
   
   // diagonal elements
   for (n in 1:n_station)
-    mu_K[n, n] = mu_K[n, n] + 10e-10;
-  mu_K_xi = cholesky_decompose(mu_K);
+    K[n, n] = K[n, n] + 10e-10;
+    
+  K_xi = cholesky_decompose(K);
   
-  for (n in 1:n_station)
-    logs_K[n, n] = logs_K[n, n] + 10e-10;
-  logs_K_xi = cholesky_decompose(logs_K);
-  
+  mu_w ~ std_normal();
+  logs_w ~ std_normal();
   xi ~ normal(0, 0.5);
-  mu_rho ~ gamma(5, 1);
-  mu_alpha ~ inv_gamma(5, 5);
-  logs_rho ~ gamma(5, 1);
-  logs_alpha ~ inv_gamma(5, 5);
+  rho ~ gamma(5, 1);
+  alpha ~ inv_gamma(5, 5);
   
-  mu ~ multi_normal_cholesky(rep_vector(0, n_station), mu_K_xi);
-  logs ~ multi_normal_cholesky(rep_vector(0, n_station), logs_K_xi);
+  mu ~ multi_normal_cholesky(rep_vector(0, n_station), mu_w * K_xi);
+  logs ~ multi_normal_cholesky(rep_vector(0, n_station), logs_w * K_xi);
 
   for (i in 1:n_obs){
     for (j in 1:n_station){
