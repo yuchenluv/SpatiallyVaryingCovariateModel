@@ -35,9 +35,9 @@ include("plot_util.jl")
 
 ```{julia}
 # all the raw data, including years, prcp and covariates
-raw_data_df = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_daily_30y.csv")))
+raw_data_all = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_daily_30y.csv")))
 
-years = raw_data_df[:, 1]
+years = raw_data_all[:, 1]
 
 # CO2 climate covariate
 lnCO2 = DataFrame(CSV.File(datadir("processed/raw_1d/lnCO2.csv")))
@@ -49,8 +49,8 @@ log_CO2_2005 = log_CO2[117]
 
 # raw precipiation intensity
 # missing values as negative
-# raw_data_df = coalesce.(raw_data_df, -99)
-raw_prcp = raw_data_df[:, 2:size(raw_data_df)[2]-1]
+# raw_data_all = coalesce.(raw_data_all, -99)
+raw_prcp = raw_data_all[:, 2:size(raw_data_all)[2]-1]
 
 # stations
 raw_stations = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_stations_30y.csv")))
@@ -63,6 +63,7 @@ n_stations = size(raw_stations)[1];
 # get the number of observations for each station
 obs_counts = [count(!ismissing, raw_prcp[!, col]) for col in names(raw_prcp)]
 raw_stations.n_obs = obs_counts;
+raw_data_df = raw_stations # substitute raw_data_df later
 ```
 
 Some general variables
@@ -418,7 +419,7 @@ Plots.plot!(p_rl_stations, left_margin = 10Plots.mm, bottom_margin = 10Plots.mm)
 # save(plotsdir("1d/p_rl_stations.png"), p_rl_stations)
 ```
 
-## Map of MCMC results (gridded)
+## gridded MCMC results
 
 Generate a set of new points
 
@@ -427,15 +428,17 @@ Generate a set of new points
 # lons_transformed = range(minimum(point_df[!, :lon]), maximum(point_df[!, :lon]), length=1175)
 # lats_transformed = range(minimum(point_df[!, :lat]), maximum(point_df[!, :lat]), length=276)
 
-# 60, 40 (previous settings)
-lons_transformed = range(minimum(raw_data_df[!, :lon]), maximum(raw_data_df[!, :lon]), length=25) # 100
-lats_transformed = range(minimum(raw_data_df[!, :lat]), maximum(raw_data_df[!, :lat]), length=15) # 60
+n_lons = 100
+n_lats = 60
+lons_transformed = range(minimum(raw_data_df[!, :lon]), maximum(raw_data_df[!, :lon]), length=n_lons) # 100
+lats_transformed = range(minimum(raw_data_df[!, :lat]), maximum(raw_data_df[!, :lat]), length=n_lats) # 60
 
 X_transformed = [[lon, lat] for lon in lons_transformed, lat in lats_transformed]
 lons_new_vec = vec([vector[1] for vector in X_transformed])
 lats_new_vec = vec([vector[2] for vector in X_transformed])
 
-X_old = [[lon, lat] for (lon, lat) in zip(raw_data_df[!, :lon], raw_data_df[!, :lat])]
+# X_old = [[lon, lat] for (lon, lat) in zip(raw_stations[!, :lon], raw_stations[!, :lat])]
+X_old = Matrix(raw_stations[:, 2:3])'
 ```
 
 Function to filter inland grids
@@ -454,174 +457,62 @@ end
 Interpolation with GP parameters
 
 ```{julia}
-gev_dist_interp(i, x, lons_new, lats_new) = GP_dist(mu_rho[i], mu_alpha[i], logs_rho[i], logs_alpha[i], mu0_rho[i], mu0_alpha[i], logs0_rho[i], logs0_alpha[i], xi_all[i], collect(μ_beta_all[i, :]), collect(logσ_beta_all[i, :]), collect(μ0_all[i, :]), collect(logσ0_all[i, :]), X_old, lons_new_vec, lats_new_vec, x)
+gev_dist_interp(i, x) = GP_dist(mu_rho[i], mu_alpha[i], logs_rho[i], logs_alpha[i], mu0_rho[i], mu0_alpha[i], logs0_rho[i], logs0_alpha[i], xi_all[i], collect(μ_beta_all[i, :]), collect(logσ_beta_all[i, :]), collect(μ0_all[i, :]), collect(logσ0_all[i, :]), X_old, lons_new_vec, lats_new_vec, x)
 
+gev_dist_interp_matrix(x, n_sim) = hcat([gev_dist_interp(i, x) for i in 1:n_sim]...)
+rl_interp_matrix(gev_dist_interp, p) = reshape(vec(mean(quantile.(gev_dist_interp, p), dims=2)), (n_lons, n_lats))
 
+gev_dist_interp_2022 = gev_dist_interp_matrix(log_CO2_2022, 10000)
+rl100_interp_2022 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_2022, 0.99))
+# rl50_interp_2022 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_2022, 0.98))
+# rl10_interp_2022 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_2022, 0.9))
+
+gev_dist_interp_1940 = gev_dist_interp_matrix(log_CO2_1940, 10000)
+rl100_interp_1940 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_1940, 0.99))
+# rl50_interp_1940 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_1940, 0.98))
+# rl10_interp_1940 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_1940, 0.9))
+
+rl100_interp_change = Matrix{Union{Float64,Missing}}((rl100_interp_2022 .- rl100_interp_1940) ./ rl100_interp_1940 .* 100)
+# rl50_interp_change = Matrix{Union{Float64,Missing}}((rl50_interp_2022 .- rl50_interp_1940) ./ rl50_interp_1940 .* 100)
+# rl10_interp_change = Matrix{Union{Float64,Missing}}((rl10_interp_2022 .- rl10_interp_1940) ./ rl10_interp_1940 .* 100)
 ```
 
-### return level estimates
-
-function to estimate return levels
+check in-land
 
 ```{julia}
-# MCMC posterior, with multivariate GP model
-function rl_estimate2_multiGP(mu_w, logs_w, μ0_w, logσ0_w, alpha, rho, μ_beta, logσ_beta, μ0, logσ0, X_new, X_old, ξ_posterior, x, p)
-    # X_new: single new location
-    predict_beta(w, alpha, rho, beta_row) = predict_multiGP(w, alpha, rho, 0, X_old, [b for b in beta_row], X_new)[1]
-    μ_beta_transformed = predict_beta.(mu_w, alpha, rho, eachrow(μ_beta))
-    logσ_beta_transformed = predict_beta.(logs_w, alpha, rho, eachrow(logσ_beta))
-    μ0_transformed = predict_beta.(μ0_w, alpha, rho, eachrow(μ0))
-    logσ0_transformed = predict_beta.(logσ0_w, alpha, rho, eachrow(logσ0))
-
-    rl = rl_estimate1.(p, x, μ0_transformed, μ_beta_transformed, logσ0_transformed, logσ_beta_transformed, ξ_posterior)
-
-    return rl
-end
-
-# estimate for all the grids
-# for the multivariate GP model
-function rl_estimate3_multiGP(mu_w, logs_w, μ0_w, logσ0_w, alpha, rho, μ_beta, logσ_beta, μ0, logσ0, X_transformed, X_old, ξ_posterior, x, p)
-    mean_new = Array{Union{Float64,Missing}}(zeros(size(X_transformed)[1], size(X_transformed)[2]))
-    std_new = Array{Union{Float64,Missing}}(zeros(size(X_transformed)[1], size(X_transformed)[2]))
-    for k in 1:size(X_transformed)[1]
-        for l in 1:size(X_transformed)[2]
-            if check_inland(X_transformed[k, l])
-                rl = rl_estimate2_multiGP(mu_w, logs_w, μ0_w, logσ0_w, alpha, rho, μ_beta, logσ_beta, μ0, logσ0, [X_transformed[k, l]], X_old, ξ_posterior, x, p)
-                mean_new[k, l] = mean(rl)
-                std_new[k, l] = std(rl)
-            else
-                mean_new[k, l] = missing
-                std_new[k, l] = missing
-            end
+for i in 1:n_lons
+    for j in 1:n_lats
+        if check_inland(X_transformed[i, j])
+            nothing
+        else
+            rl100_interp_2022[i, j] = missing
+            rl10_interp_2022[i, j] = missing
+            rl100_interp_change[i, j] = missing
+            rl10_interp_change[i, j] = missing
         end
     end
-    return mean_new, std_new
 end
 ```
 
-MCMC posterior mean and std of return level estimates
 ```{julia}
-# CSV.write(datadir("processed/1d_results/mean_new_rl10_2022.csv"), DataFrame(mean_new_rl10_2022, :auto))
-# CSV.write(datadir("processed/1d_results/std_new_rl10_2022.csv"), DataFrame(std_new_rl10_2022, :auto))
+var_transformed_all = [rl10_interp_2022, rl100_interp_2022, rl10_interp_change, rl100_interp_change]
 
-mean_new_rl10_2022 = Matrix(DataFrame(CSV.File(datadir("processed/1d_results/mean_new_rl10_2022.csv"))))
+res = (1500, 500)
+row_hs = [900, 900]
+
+rows = [1, 1, 2, 2]
+cols = [1, 2, 1, 2]
+
+row_names = ["2022", "", "2022-1940", ""]
+col_names = [" ", " ", " ", " "]
+title_names = ["10 year", "100 year", "", ""]
+bar_name = ["", "inches/d", "", "% difference"]
+
+colors = [:roma10, :roma10, :YlGn_6, :YlGn_6]
+
+ranges = [(6, 16), (6, 16), (15, 28), (15, 28)]
+
+gridded_rl_change = map_grids_subplots(raw_data_df, lons_transformed, lats_transformed, var_transformed_all, colors, rows, cols, row_names, col_names, res, row_hs, title_names, ranges; diff_coord=false, bar_all=false, diff_colbar=true, bar_name=bar_name)
+
+# save(plotsdir("1d/gridded_rl_change.png"), gridded_rl_change)
 ```
-```{julia}
-# mean_new_rl10_2022, std_new_rl10_2022 = rl_estimate3_multiGP(mu_w_all, logs_w_all, μ0_w_all, logσ0_w_all, alpha_all, rho_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, X_transformed, X_old, xi_all, log_CO2_2022, 0.9)
-
-mean_new_rl100_2022, std_new_rl100_2022 = rl_estimate3_multiGP(
-    mu_w_all,
-    logs_w_all,
-    μ0_w_all,
-    logσ0_w_all,
-    alpha_all,
-    rho_all,
-    μ_beta_all,
-    logσ_beta_all,
-    μ0_all,
-    logσ0_all,
-    X_transformed,
-    X_old,
-    xi_all,
-    log_CO2_2022,
-    0.99,
-)
-
-# mean_new_rl10_1940, std_new_rl10_1940 = rl_estimate3_multiGP(mu_w_all, logs_w_all, μ0_w_all, logσ0_w_all, alpha_all, rho_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, X_transformed, X_old, xi_all, log_CO2_1940, 0.9)
-
-# mean_new_rl100_1940, std_new_rl100_1940 = rl_estimate3_multiGP(mu_w_all, logs_w_all, μ0_w_all, logσ0_w_all, alpha_all, rho_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, X_transformed, X_old, xi_all, log_CO2_1940, 0.99)
-```
-
-```{julia}
-var_transformed_all = [
-    mean_new_rl10_2022,
-    mean_new_rl50_2022,
-    mean_new_rl100_2022,
-    mean_new_rl10_1940,
-    mean_new_rl50_1940,
-    mean_new_rl100_1940,
-    mean_new_rl10_2022 .- mean_new_rl10_1940,
-    mean_new_rl50_2022 .- mean_new_rl50_1940,
-    mean_new_rl100_2022 .- mean_new_rl100_1940,
-]
-
-res = (3000, 1000)
-row_hs = [1100, 900, 900]
-
-rows = [1, 1, 1, 2, 2, 2, 3, 3, 3]
-cols = [1, 2, 3, 1, 2, 3, 1, 2, 3]
-
-row_names = [
-    "all",
-    "",
-    "",
-    "sub1",
-    "",
-    "",
-    "sub2",
-    "",
-    "",
-    "sub3",
-    "",
-    "",
-    "sub4",
-    "",
-    "",
-    "sub5",
-    "",
-    "",
-]
-title_names = [
-    "10 year",
-    "50 year",
-    "100 year",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-]
-
-row_names = ["2022", "", "", "1940", "", "", "2022-1940", "", ""]
-col_names = ["", "", "", "", "", "", "", "", ""]
-title_names = ["10 year", "50 year", "100 year", "", "", "", "", "", ""]
-
-colorschemes = [:roma25, :roma25, :roma25, :roma25, :roma25, :roma25, :GnBu, :GnBu, :GnBu]
-
-# ranges = [(minimum(skipmissing(var_transformed_all[i])), maximum(skipmissing(var_transformed_all[i]))) for i in 1:length(var_transformed_all)]
-ranges =
-    [(0, 16), (0, 16), (0, 16), (0, 16), (0, 16), (0, 16), (0, 3.5), (0, 3.5), (0, 3.5)]
-
-gridded_rl_change = map_grids_subplots(
-    raw_data_df,
-    lons_transformed,
-    lats_transformed,
-    var_transformed_all,
-    colorschemes,
-    rows,
-    cols,
-    row_names,
-    col_names,
-    res,
-    row_hs,
-    title_names,
-    ranges;
-    diff_coord = false,
-    bar_all = false,
-    diff_colbar = true,
-)
-
-save(plotsdir("1d/gridded_rl_change.png"), gridded_rl_change)
-#
-```
-

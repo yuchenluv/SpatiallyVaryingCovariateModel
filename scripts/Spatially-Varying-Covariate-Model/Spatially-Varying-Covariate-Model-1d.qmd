@@ -134,8 +134,8 @@ MCMC_fit <- function(model, data, init_list){
 MAP and MCMC runs (5000 iterations 4 chains)
 
 ```{r}
-index_i = index_sub3
-stations_i = stations3
+index_i = index_sub4
+stations_i = stations4
 
 prcp_i = prcp[, index_i]
 lons_i = stations_i[, 3]
@@ -158,7 +158,7 @@ model_full_MCMC = MCMC_fit(model_full, data_full, init_list_model_full)
 ```
 
 ```{r}
-file_path = "../../data/processed/1d_results/model_full_gridt1s3.Rds"
+file_path = "../../data/processed/1d_results/model_full_gridt1s4.Rds"
 saveRDS(model_full_MCMC, file_path)
 model_full_MCMC
 ```
@@ -182,9 +182,9 @@ extract_MCMC <- function(MCMC_posterior_all, variable, station_i){
 ```{r}
 variables_full = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu0_rho", "mu0_alpha", "logs0_rho", "logs0_alpha", "xi")
 # variables_full = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu_w", "mu0_w", "logs_w", "logs0_w", "xi")
-file_path_MCMC = "../../data/processed/1d_results/model_full_grids5.Rds"
+file_path_MCMC = "../../data/processed/1d_results/model_full_gridt1s3.Rds"
 model_full_MCMC_i = readRDS(file_path_MCMC)
-n_s = dim(stations5)[1]
+n_s = dim(stations3)[1]
 model_full_posterior = matrix(0, nrow = 10000, nc = 9+n_s*4)
 
 for (v in 1:length(variables_full)){
@@ -204,6 +204,6 @@ for (s in 1:n_s){
 }
 
 model_full_posterior = as.data.frame(model_full_posterior)
-file_path = "../../data/processed/1d_results/model_full_grids5.csv"
+file_path = "../../data/processed/1d_results/model_full_gridt1s3.csv"
 write.csv(model_full_posterior, file_path)
 ```
