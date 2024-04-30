@@ -134,15 +134,15 @@ MCMC_fit <- function(model, data, init_list){
 MAP and MCMC runs (5000 iterations 4 chains)
 
 ```{r}
-index_i = index_sub2
-stations_i = stations2
+index_i = index_sub4
+stations_i = stations4
 
 prcp_i = prcp[, index_i]
 lons_i = stations_i[, 3]
 lats_i = stations_i[, 2]
 X_i = cbind(lons_i, lats_i)
 
-# prcp_i[112:122, ] = -99/25.4
+prcp_i[112:122, ] = -99/25.4
 ```
 
 ```{r}
@@ -158,7 +158,7 @@ model_full_MCMC = MCMC_fit(model_full, data_full, init_list_model_full)
 ```
 
 ```{r}
-file_path = "../../data/processed/1d_results/model_full_grids2.Rds"
+file_path = "../../data/processed/1d_results/model_full_s4t1.Rds"
 saveRDS(model_full_MCMC, file_path)
 model_full_MCMC
 ```
