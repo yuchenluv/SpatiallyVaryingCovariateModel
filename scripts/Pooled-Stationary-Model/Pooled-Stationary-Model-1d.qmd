@@ -98,6 +98,7 @@ model_S_MCMC = MCMC_fit(model_S, data_S, init_list_model_S)
   
 file_path = "../../data/processed/1d_results/model_S_t1.Rds"
 saveRDS(model_S_MCMC, file_path)
+model_S_MCMC
 ```
 
 Load previous results (if MCMC was done before)
@@ -118,9 +119,9 @@ extract_MCMC <- function(MCMC_posterior_all, variable, station_i){
 ```{r}
 variables_S = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "xi")
 n_s = n_station
-model_S_MCMC_i = readRDS("../../data/processed/1d_results/model_S_all.Rds")
+model_S_MCMC_i = readRDS("../../data/processed/1d_results/model_S_t1.Rds")
 model_S_posterior = matrix(0, nrow = 10000, nc = 5+2*n_s)
-  
+
 for (v in 1:length(variables_S)){
   model_S_posterior[ , v] = unlist(rstan::extract(model_S_MCMC_i, paste(variables_S[v], sep = "")))
 }
@@ -131,6 +132,6 @@ for (s in 1:n_s){
   model_S_posterior[ , length(variables_S)+n_s+s] = extract_MCMC(model_S_MCMC_i, "logs", s)
 }
 model_S_posterior = as.data.frame(model_S_posterior)
-file_path = "../../data/processed/1d_results/model_S_all"
+file_path = "../../data/processed/1d_results/model_S_t1.csv"
 write.csv(model_S_posterior, file_path)
 ```
