@@ -44,8 +44,7 @@ X = cbind(lons, lats) # coordinates
 log_CO2 = data[, length(data)] # CO2 covariate
 
 # exculde 2000-2010
-prcp_t1 = prcp
-prcp_t1[112:122, ] = -99/25.4
+prcp[112:122, ] = -99/25.4
 ```
 
 Functions for MAP and MCMC simulations
@@ -79,7 +78,7 @@ MAP_fit <- function(model, data){
 MCMC_fit <- function(model, data, init_list){
   fit = sampling(object = model, # Stan model (compiled)
                  data = data, # Data as a named list
-                 iter = 5000, chains = 4, algorithm = "NUTS", 
+                 iter = 10000, chains = 4, algorithm = "NUTS", 
                  init = list(init_list, init_list, init_list, init_list))
 }
 ```
@@ -88,10 +87,10 @@ MAP and MCMC runs (5000 iterations 4 chains)
 
 ```{r}
 model_N = stan_model("Nonpooled-Nonstationary-Model.stan")
-model_N_posterior = matrix(0, nrow = 10000, nc = 5*n_station)
+model_N_posterior = matrix(0, nrow = 20000, nc = 5*n_station)
 for (i in 1:n_station){
   data_N = list(n_obs = n_obs,
-                y = prcp,
+                y = prcp[, i],
                 x = log_CO2)
   
   model_N_MAP = MAP_fit(model_N, data_N)
@@ -107,5 +106,5 @@ for (i in 1:n_station){
 ```
 
 ```{r}
-write.csv(model_N_posterior, "../../data/processed/1d_results/model_N_all.csv")
+write.csv(model_N_posterior, "../../data/processed/1d_results/model_N_t1_1M.csv")
 ```

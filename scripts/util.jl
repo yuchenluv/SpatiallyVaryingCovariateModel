@@ -2,6 +2,7 @@
 Common functions for calculations
 """
 
+
 """functions to read MCMC csv files saved from r"""
 
 # pooled stationary model
@@ -96,6 +97,7 @@ function read_MCMC_results_full_diffRho(file_path, n_stations)
     return mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi, μ_beta, logσ_beta, μ0, logσ0
 end
 
+
 """Functions to get the simulated distributions for points"""
 
 # Pooled Stationary Model
@@ -127,6 +129,7 @@ function get_dist_MCMC_full(station_i, μ_beta, logσ_beta, μ0_posterior, logσ
     σ_k = exp.(logσ0_k .+ x .* logσ_beta_k)
     return GeneralizedExtremeValue.(μ_k, σ_k, ξ_posterior)
 end
+
 
 """Functions for return level estimates"""
 
@@ -184,6 +187,7 @@ function rl_etimate_S(point_df, mu, logs, xi, p)
     return mean_stations, std_stations
 end
 
+
 """Functions for quantile plots"""
 
 # get the simulated distribution for the full model
@@ -200,9 +204,9 @@ function sim_quantile(prcp_s, μ_beta_s, logσ_beta_s, μ0_s, logσ0_s, ξ_s, x)
     return sim_q
 end
 
-function sim_quantiles(prcp, μ_beta, logσ_beta, μ0, logσ0, ξ, logCO2, total_records)
+function sim_quantiles(prcp, μ_beta, logσ_beta, μ0, logσ0, ξ, logCO2, total_records, n_sims)
     i = 0
-    sim_qs = zeros(10000 * total_records)
+    sim_qs = zeros(n_sims * total_records)
     for y in 1:size(prcp)[1]
         x = logCO2[y]
         for s in 1:size(prcp)[2]
@@ -211,12 +215,13 @@ function sim_quantiles(prcp, μ_beta, logσ_beta, μ0, logσ0, ξ, logCO2, total
             else
                 i = i + 1
                 sim_q_s = sim_quantile(prcp[y, s] / 25.4, μ_beta[:, s], logσ_beta[:, s], μ0[:, s], logσ0[:, s], ξ, x)
-                sim_qs[10000*(i-1)+1:10000*i] = sim_q_s
+                sim_qs[n_sims*(i-1)+1:n_sims*i] = sim_q_s
             end
         end
     end
     return sim_qs
 end
+
 
 """GP interpolation with MVN"""
 
@@ -240,6 +245,7 @@ end
 
 
 """web scrape Atlas 14 estimates"""
+
 # Function to extract and parse the quantiles from the fetched data
 function parse_quantiles_from_url(url)
     # Fetching data from the URL

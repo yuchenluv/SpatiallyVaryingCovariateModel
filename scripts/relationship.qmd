@@ -1,0 +1,95 @@
+---
+title: "Impacts of climate covariates"
+jupyter: julia-1.8
+execute:
+  cache: true
+---
+## Setup
+
+Load in packages and load in the kernel function saved in a file called `util.jl`.
+
+```{julia}
+#| code-fold: true
+using CairoMakie
+using CSV
+using Distributions
+using DataFrames
+using DataFramesMeta
+using Dates
+using DrWatson
+using GeoJSON
+using GeoMakie
+using Plots
+using StatsBase
+
+CairoMakie.activate!(type="svg")
+```
+
+Load in the functions that will allow us to get the data
+
+```{julia}
+#| code-fold: true
+include(scriptsdir("params.jl")) # defines our parameters
+include(scriptsdir("get_data.jl")) # provides function to get the data
+include(scriptsdir("util.jl"))
+include(scriptsdir("plot_util.jl"));
+```
+
+# Analyzing observation data
+
+## Read raw data
+
+read the processed climate data
+
+```{julia}
+# all the raw data, including years, prcp and covariates
+raw_data_all = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_daily_30y.csv")))
+
+years = raw_data_all[:, 1]
+
+# CO2 climate covariate
+lnCO2 = DataFrame(CSV.File(datadir("processed/raw_1d/lnCO2.csv")))
+lnCO2 = vcat(lnCO2[:, :log_CO2], log(525))
+log_CO2 = lnCO2 .- mean(lnCO2[1:(length(lnCO2)-1)])
+
+# raw precipiation intensity
+# missing values as negative
+# raw_data_all = coalesce.(raw_data_all, -99)
+raw_prcp = raw_data_all[:, 2:size(raw_data_all)[2]-1]
+
+# stations
+raw_stations = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_stations_30y.csv")))
+
+# total number of stations
+n_stations = size(raw_stations)[1];
+```
+
+## analyze correlation coefficients
+
+```{julia}
+function kendall_cor(idx, dataset, x_dataset)
+    y = dataset[completecases(DataFrame(id=dataset[:, idx])), :]
+    X = x_dataset[1:(length(x_dataset)-1)][completecases(DataFrame(id=dataset[:, idx])), :]
+    # y = ustrip.(u"mm", y[:, idx])
+    y = y[:, idx]
+    y = y ./ 25.4
+    cor = StatsBase.corkendall(X, y)
+    return cor
+end
+
+function cor_df(dataset_obs, x_dataset)
+    cor = [kendall_cor(idx, dataset_obs, x_dataset)[1] for idx in names(dataset_obs)]
+    cor = DataFrame(stnid=names(dataset_obs), name=cor)
+    return cor
+end
+```
+
+```{julia}
+# cor_logCO2 = cor_df(raw_prcp, log_CO2)
+maximum(cor_logCO2[:, 2])
+```
+
+```{julia}
+p_CO2_cor = map_points(raw_stations, cor_logCO2[:, 2], "kendall correlation", (-0.3, 0.3), :RdBu, "", (1000, 300))
+save(plotsdir("1d/logCO2_cor.png"), p_CO2_cor)
+```

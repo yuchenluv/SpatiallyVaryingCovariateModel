@@ -13,6 +13,7 @@ Load in packages
 
 ```{julia}
 #| code-fold: true
+using AlgebraOfGraphics
 using CairoMakie
 using CSV
 using DataFrames
@@ -27,8 +28,11 @@ using Plots;
 load commonly used functions
 
 ```{julia}
-include("util.jl")
-include("plot_util.jl");
+#| code-fold: true
+include(scriptsdir("params.jl")) # defines our parameters
+include(scriptsdir("get_data.jl")) # provides function to get the data
+include(scriptsdir("util.jl"))
+include(scriptsdir("plot_util.jl"));
 ```
 
 # Load data
@@ -63,7 +67,7 @@ Some general variables
 
 ```{julia}
 # number of MCMC simulations
-n_sim = 10000
+n_sim = 20000;
 ```
 
 # spatially cross-validation for the full model
@@ -103,7 +107,7 @@ p_n_obs_subs = map_points_subplots(coords_subsets, obs_dfs, :matter, rows, cols,
 ## Read in MCMC results
 
 ```{julia}
-mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_all_4rho.csv", n_stations)
+mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_all_4rho_1Mruns.csv", n_stations)
 
 # using different parameter settings
 # rho_all, alpha_all, mu_w_all, logs_w_all, μ0_w_all, logσ0_w_all, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_shareRho1("processed/1d_results/model_full_posterior_all_1rho.csv", n_stations)
@@ -114,32 +118,32 @@ mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alp
 Cross-validation of different station subsets
 
 ```{julia}
-mu_rho_sub1, mu_alpha_sub1, logs_rho_sub1, logs_alpha_sub1, mu0_rho_sub1, mu0_alpha_sub1, logs0_rho_sub1, logs0_alpha_sub1, xi_sub1, μ_beta_sub1, logσ_beta_sub1, μ0_sub1, logσ0_sub1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids1.csv", length(sub1_index))
+mu_rho_sub1, mu_alpha_sub1, logs_rho_sub1, logs_alpha_sub1, mu0_rho_sub1, mu0_alpha_sub1, logs0_rho_sub1, logs0_alpha_sub1, xi_sub1, μ_beta_sub1, logσ_beta_sub1, μ0_sub1, logσ0_sub1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids1_1Mruns.csv", length(sub1_index))
 
-mu_rho_sub2, mu_alpha_sub2, logs_rho_sub2, logs_alpha_sub2, mu0_rho_sub2, mu0_alpha_sub2, logs0_rho_sub2, logs0_alpha_sub2, xi_sub2, μ_beta_sub2, logσ_beta_sub2, μ0_sub2, logσ0_sub2 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids2.csv", length(sub2_index))
+mu_rho_sub2, mu_alpha_sub2, logs_rho_sub2, logs_alpha_sub2, mu0_rho_sub2, mu0_alpha_sub2, logs0_rho_sub2, logs0_alpha_sub2, xi_sub2, μ_beta_sub2, logσ_beta_sub2, μ0_sub2, logσ0_sub2 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids2_1Mruns.csv", length(sub2_index))
 
-mu_rho_sub3, mu_alpha_sub3, logs_rho_sub3, logs_alpha_sub3, mu0_rho_sub3, mu0_alpha_sub3, logs0_rho_sub3, logs0_alpha_sub3, xi_sub3, μ_beta_sub3, logσ_beta_sub3, μ0_sub3, logσ0_sub3 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids3.csv", length(sub3_index))
+mu_rho_sub3, mu_alpha_sub3, logs_rho_sub3, logs_alpha_sub3, mu0_rho_sub3, mu0_alpha_sub3, logs0_rho_sub3, logs0_alpha_sub3, xi_sub3, μ_beta_sub3, logσ_beta_sub3, μ0_sub3, logσ0_sub3 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids3_1Mruns.csv", length(sub3_index))
 
-mu_rho_sub4, mu_alpha_sub4, logs_rho_sub4, logs_alpha_sub4, mu0_rho_sub4, mu0_alpha_sub4, logs0_rho_sub4, logs0_alpha_sub4, xi_sub4, μ_beta_sub4, logσ_beta_sub4, μ0_sub4, logσ0_sub4 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids4.csv", length(sub4_index))
+mu_rho_sub4, mu_alpha_sub4, logs_rho_sub4, logs_alpha_sub4, mu0_rho_sub4, mu0_alpha_sub4, logs0_rho_sub4, logs0_alpha_sub4, xi_sub4, μ_beta_sub4, logσ_beta_sub4, μ0_sub4, logσ0_sub4 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids4_1Mruns.csv", length(sub4_index))
 
-mu_rho_sub5, mu_alpha_sub5, logs_rho_sub5, logs_alpha_sub5, mu0_rho_sub5, mu0_alpha_sub5, logs0_rho_sub5, logs0_alpha_sub5, xi_sub5, μ_beta_sub5, logσ_beta_sub5, μ0_sub5, logσ0_sub5 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids5.csv", length(sub5_index))
+mu_rho_sub5, mu_alpha_sub5, logs_rho_sub5, logs_alpha_sub5, mu0_rho_sub5, mu0_alpha_sub5, logs0_rho_sub5, logs0_alpha_sub5, xi_sub5, μ_beta_sub5, logσ_beta_sub5, μ0_sub5, logσ0_sub5 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids5_1Mruns.csv", length(sub5_index))
 ```
 
 Cross-validation of different station subsets and without data in year 2000-2010
 
 ```{julia}
-mu_rho_t1s1, mu_alpha_t1s1, logs_rho_t1s1, logs_alpha_t1s1, mu0_rho_t1s1, mu0_alpha_t1s1, logs0_rho_t1s1, logs0_alpha_t1s1, xi_t1s1, μ_beta_t1s1, logσ_beta_t1s1, μ0_t1s1, logσ0_t1s1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_s1t1.csv", length(sub1_index))
+mu_rho_t1s1, mu_alpha_t1s1, logs_rho_t1s1, logs_alpha_t1s1, mu0_rho_t1s1, mu0_alpha_t1s1, logs0_rho_t1s1, logs0_alpha_t1s1, xi_t1s1, μ_beta_t1s1, logσ_beta_t1s1, μ0_t1s1, logσ0_t1s1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids1t1_1Mruns.csv", length(sub1_index))
 
-mu_rho_t1s2, mu_alpha_t1s2, logs_rho_t1s2, logs_alpha_t1s2, mu0_rho_t1s2, mu0_alpha_t1s2, logs0_rho_t1s2, logs0_alpha_t1s2, xi_t1s2, μ_beta_t1s2, logσ_beta_t1s2, μ0_t1s2, logσ0_t1s2 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_s2t1.csv", length(sub2_index))
+mu_rho_t1s2, mu_alpha_t1s2, logs_rho_t1s2, logs_alpha_t1s2, mu0_rho_t1s2, mu0_alpha_t1s2, logs0_rho_t1s2, logs0_alpha_t1s2, xi_t1s2, μ_beta_t1s2, logσ_beta_t1s2, μ0_t1s2, logσ0_t1s2 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids2t1_1Mruns.csv", length(sub2_index))
 
-mu_rho_t1s3, mu_alpha_t1s3, logs_rho_t1s3, logs_alpha_t1s3, mu0_rho_t1s3, mu0_alpha_t1s3, logs0_rho_t1s3, logs0_alpha_t1s3, xi_t1s3, μ_beta_t1s3, logσ_beta_t1s3, μ0_t1s3, logσ0_t1s3 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_s3t1.csv", length(sub3_index))
+mu_rho_t1s3, mu_alpha_t1s3, logs_rho_t1s3, logs_alpha_t1s3, mu0_rho_t1s3, mu0_alpha_t1s3, logs0_rho_t1s3, logs0_alpha_t1s3, xi_t1s3, μ_beta_t1s3, logσ_beta_t1s3, μ0_t1s3, logσ0_t1s3 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids3t1_1Mruns.csv", length(sub3_index))
 
-mu_rho_t1s4, mu_alpha_t1s4, logs_rho_t1s4, logs_alpha_t1s4, mu0_rho_t1s4, mu0_alpha_t1s4, logs0_rho_t1s4, logs0_alpha_t1s4, xi_t1s4, μ_beta_t1s4, logσ_beta_t1s4, μ0_t1s4, logσ0_t1s4 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_s4t1.csv", length(sub4_index))
+mu_rho_t1s4, mu_alpha_t1s4, logs_rho_t1s4, logs_alpha_t1s4, mu0_rho_t1s4, mu0_alpha_t1s4, logs0_rho_t1s4, logs0_alpha_t1s4, xi_t1s4, μ_beta_t1s4, logσ_beta_t1s4, μ0_t1s4, logσ0_t1s4 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids4t1_1Mruns.csv", length(sub4_index))
 
-mu_rho_t1s5, mu_alpha_t1s5, logs_rho_t1s5, logs_alpha_t1s5, mu0_rho_t1s5, mu0_alpha_t1s5, logs0_rho_t1s5, logs0_alpha_t1s5, xi_t1s5, μ_beta_t1s5, logσ_beta_t1s5, μ0_t1s5, logσ0_t1s5 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_s5t1.csv", length(sub5_index))
+mu_rho_t1s5, mu_alpha_t1s5, logs_rho_t1s5, logs_alpha_t1s5, mu0_rho_t1s5, mu0_alpha_t1s5, logs0_rho_t1s5, logs0_alpha_t1s5, xi_t1s5, μ_beta_t1s5, logσ_beta_t1s5, μ0_t1s5, logσ0_t1s5 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids5t1_1Mruns.csv", length(sub5_index))
 ```
 
-### Out of sample predictability (need a concise code)
+### Out of sample predictability (selected stations, box plots)
 
 ```{julia}
 # to select out of sample stations
@@ -193,22 +197,22 @@ subsetting stations and excluding 2000-2010
 
 ```{julia}
 # in the function, i is the simluation number (in total n_sim)
-gev_dist_new(i, x, lons_new, lats_new, x_old, mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi, mu_beta, logs_beta, mu0, logs0) = GP_dist(mu_rho[i], mu_alpha[i], logs_rho[i], logs_alpha[i], mu0_rho[i], mu0_alpha[i], logs0_rho[i], logs0_alpha[i], xi[i], collect(mu_beta[i, :]), collect(logs_beta[i, :]), collect(mu0[i, :]), collect(logs0[i, :]), x_old, lons_new, lats_new, x)
+# gev_dist_new(i, x, lons_new, lats_new, x_old, mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi, mu_beta, logs_beta, mu0, logs0) = GP_dist(mu_rho[i], mu_alpha[i], logs_rho[i], logs_alpha[i], mu0_rho[i], mu0_alpha[i], logs0_rho[i], logs0_alpha[i], xi[i], collect(mu_beta[i, :]), collect(logs_beta[i, :]), collect(mu0[i, :]), collect(logs0[i, :]), x_old, lons_new, lats_new, x)
 
-x_old_sub1 = Matrix(raw_stations[sub1_index, 2:3])'
-gev_t1s1 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub1, mu_rho_t1s1, mu_alpha_t1s1, logs_rho_t1s1, logs_alpha_t1s1, mu0_rho_t1s1, mu0_alpha_t1s1, logs0_rho_t1s1, logs0_alpha_t1s1, xi_t1s1, μ_beta_t1s1, logσ_beta_t1s1, μ0_t1s1, logσ0_t1s1) for i = 1:n_sim] for s in OFS_s1]...)
+# x_old_sub1 = Matrix(raw_stations[sub1_index, 2:3])'
+# gev_t1s1 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub1, mu_rho_t1s1, mu_alpha_t1s1, logs_rho_t1s1, logs_alpha_t1s1, mu0_rho_t1s1, mu0_alpha_t1s1, logs0_rho_t1s1, logs0_alpha_t1s1, xi_t1s1, μ_beta_t1s1, logσ_beta_t1s1, μ0_t1s1, logσ0_t1s1) for i = 1:n_sim] for s in OFS_s1]...)
 
-x_old_sub2 = Matrix(raw_stations[sub2_index, 2:3])'
-gev_t1s2 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub2, mu_rho_t1s2, mu_alpha_t1s2, logs_rho_t1s2, logs_alpha_t1s2, mu0_rho_t1s2, mu0_alpha_t1s2, logs0_rho_t1s2, logs0_alpha_t1s2, xi_t1s2, μ_beta_t1s2, logσ_beta_t1s2, μ0_t1s2, logσ0_t1s2) for i = 1:n_sim] for s in OFS_s2]...)
+# x_old_sub2 = Matrix(raw_stations[sub2_index, 2:3])'
+# gev_t1s2 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub2, mu_rho_t1s2, mu_alpha_t1s2, logs_rho_t1s2, logs_alpha_t1s2, mu0_rho_t1s2, mu0_alpha_t1s2, logs0_rho_t1s2, logs0_alpha_t1s2, xi_t1s2, μ_beta_t1s2, logσ_beta_t1s2, μ0_t1s2, logσ0_t1s2) for i = 1:n_sim] for s in OFS_s2]...)
 
-x_old_sub3 = Matrix(raw_stations[sub3_index, 2:3])'
-gev_t1s3 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub3, mu_rho_t1s3, mu_alpha_t1s3, logs_rho_t1s3, logs_alpha_t1s3, mu0_rho_t1s3, mu0_alpha_t1s3, logs0_rho_t1s3, logs0_alpha_t1s3, xi_t1s3, μ_beta_t1s3, logσ_beta_t1s3, μ0_t1s3, logσ0_t1s3) for i = 1:n_sim] for s in OFS_s3]...)
+# x_old_sub3 = Matrix(raw_stations[sub3_index, 2:3])'
+# gev_t1s3 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub3, mu_rho_t1s3, mu_alpha_t1s3, logs_rho_t1s3, logs_alpha_t1s3, mu0_rho_t1s3, mu0_alpha_t1s3, logs0_rho_t1s3, logs0_alpha_t1s3, xi_t1s3, μ_beta_t1s3, logσ_beta_t1s3, μ0_t1s3, logσ0_t1s3) for i = 1:n_sim] for s in OFS_s3]...)
 
-x_old_sub4 = Matrix(raw_stations[sub4_index, 2:3])'
-gev_t1s4 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub4, mu_rho_t1s4, mu_alpha_t1s4, logs_rho_t1s4, logs_alpha_t1s4, mu0_rho_t1s4, mu0_alpha_t1s4, logs0_rho_t1s4, logs0_alpha_t1s4, xi_t1s4, μ_beta_t1s4, logσ_beta_t1s4, μ0_t1s4, logσ0_t1s4) for i = 1:n_sim] for s in OFS_s4]...)
+# x_old_sub4 = Matrix(raw_stations[sub4_index, 2:3])'
+# gev_t1s4 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub4, mu_rho_t1s4, mu_alpha_t1s4, logs_rho_t1s4, logs_alpha_t1s4, mu0_rho_t1s4, mu0_alpha_t1s4, logs0_rho_t1s4, logs0_alpha_t1s4, xi_t1s4, μ_beta_t1s4, logσ_beta_t1s4, μ0_t1s4, logσ0_t1s4) for i = 1:n_sim] for s in OFS_s4]...)
 
-x_old_sub5 = Matrix(raw_stations[sub5_index, 2:3])'
-gev_t1s5 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub5, mu_rho_t1s5, mu_alpha_t1s5, logs_rho_t1s5, logs_alpha_t1s5, mu0_rho_t1s5, mu0_alpha_t1s5, logs0_rho_t1s5, logs0_alpha_t1s5, xi_t1s5, μ_beta_t1s5, logσ_beta_t1s5, μ0_t1s5, logσ0_t1s5) for i = 1:n_sim] for s in OFS_s5]...)
+# x_old_sub5 = Matrix(raw_stations[sub5_index, 2:3])'
+# gev_t1s5 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub5, mu_rho_t1s5, mu_alpha_t1s5, logs_rho_t1s5, logs_alpha_t1s5, mu0_rho_t1s5, mu0_alpha_t1s5, logs0_rho_t1s5, logs0_alpha_t1s5, xi_t1s5, μ_beta_t1s5, logσ_beta_t1s5, μ0_t1s5, logσ0_t1s5) for i = 1:n_sim] for s in OFS_s5]...)
 ```
 
 ```{julia}
@@ -224,75 +228,170 @@ function rl_boxplot_data(i_s, i_m, dists, n_sim, p)
     return rl_boxplot
 end
 
-rl_boxplot_data_sub1 = vcat([rl_boxplot_data(i, 2, vcat(gev_sub1[:, i]...), 10000, 0.99) for i in 1:length(OFS_s1)]...)
-rl_boxplot_data_1 = vcat([rl_boxplot_data(i, 1, gev_all1[:, i], 10000, 0.99) for i in 1:length(OFS_s1)]...)
-rl_boxplot_data_t1s1 = vcat([rl_boxplot_data(i, 3, vcat(gev_t1s1[:, i]...), 10000, 0.99) for i in 1:length(OFS_s1)]...)
+# rl_boxplot_data_sub1 = vcat([rl_boxplot_data(i, 2, vcat(gev_sub1[:, i]...), n_sim, 0.99) for i in 1:length(OFS_s1)]...)
+# rl_boxplot_data_1 = vcat([rl_boxplot_data(i, 1, gev_all1[:, i], n_sim, 0.99) for i in 1:length(OFS_s1)]...)
+# rl_boxplot_data_t1s1 = vcat([rl_boxplot_data(i, 3, vcat(gev_t1s1[:, i]...), n_sim, 0.99) for i in 1:length(OFS_s1)]...)
 
-rl_boxplot_data_sub2 = vcat([rl_boxplot_data(i+length(OFS_s1), 2, vcat(gev_sub2[:, i]...), 10000, 0.99) for i in 1:length(OFS_s2)]...)
-rl_boxplot_data_2 = vcat([rl_boxplot_data(i+length(OFS_s1), 1, gev_all2[:, i], 10000, 0.99) for i in 1:length(OFS_s2)]...)
-rl_boxplot_data_t1s2 = vcat([rl_boxplot_data(i+length(OFS_s1), 3, vcat(gev_t1s2[:, i]...), 10000, 0.99) for i in 1:length(OFS_s2)]...)
+# rl_boxplot_data_sub2 = vcat([rl_boxplot_data(i+length(OFS_s1), 2, vcat(gev_sub2[:, i]...), n_sim, 0.99) for i in 1:length(OFS_s2)]...)
+# rl_boxplot_data_2 = vcat([rl_boxplot_data(i+length(OFS_s1), 1, gev_all2[:, i], n_sim, 0.99) for i in 1:length(OFS_s2)]...)
+# rl_boxplot_data_t1s2 = vcat([rl_boxplot_data(i+length(OFS_s1), 3, vcat(gev_t1s2[:, i]...), n_sim, 0.99) for i in 1:length(OFS_s2)]...)
 
-rl_boxplot_data_sub3 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2), 2, vcat(gev_sub1[:, i]...), 10000, 0.99) for i in 1:length(OFS_s3)]...)
-rl_boxplot_data_3 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2), 1, gev_all1[:, i], 10000, 0.99) for i in 1:length(OFS_s3)]...)
-rl_boxplot_data_t1s3 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2), 3, vcat(gev_t1s3[:, i]...), 10000, 0.99) for i in 1:length(OFS_s3)]...)
+# rl_boxplot_data_sub3 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2), 2, vcat(gev_sub1[:, i]...), n_sim, 0.99) for i in 1:length(OFS_s3)]...)
+# rl_boxplot_data_3 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2), 1, gev_all1[:, i], n_sim, 0.99) for i in 1:length(OFS_s3)]...)
+# rl_boxplot_data_t1s3 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2), 3, vcat(gev_t1s3[:, i]...), n_sim, 0.99) for i in 1:length(OFS_s3)]...)
 
-rl_boxplot_data_sub4 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3), 2, vcat(gev_sub1[:, i]...), 10000, 0.99) for i in 1:length(OFS_s4)]...)
-rl_boxplot_data_4 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3), 1, gev_all1[:, i], 10000, 0.99) for i in 1:length(OFS_s4)]...)
-rl_boxplot_data_t1s4 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3), 3, vcat(gev_t1s4[:, i]...), 10000, 0.99) for i in 1:length(OFS_s4)]...)
+# rl_boxplot_data_sub4 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3), 2, vcat(gev_sub1[:, i]...), n_sim, 0.99) for i in 1:length(OFS_s4)]...)
+# rl_boxplot_data_4 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3), 1, gev_all1[:, i], n_sim, 0.99) for i in 1:length(OFS_s4)]...)
+# rl_boxplot_data_t1s4 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3), 3, vcat(gev_t1s4[:, i]...), n_sim, 0.99) for i in 1:length(OFS_s4)]...)
 
-rl_boxplot_data_sub5 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3)+length(OFS_s4), 2, vcat(gev_sub1[:, i]...), 10000, 0.99) for i in 1:length(OFS_s5)]...)
-rl_boxplot_data_5 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3)+length(OFS_s4), 1, gev_all1[:, i], 10000, 0.99) for i in 1:length(OFS_s5)]...)
-rl_boxplot_data_t1s5 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3)+length(OFS_s4), 3, vcat(gev_t1s5[:, i]...), 10000, 0.99) for i in 1:length(OFS_s5)]...)
+# rl_boxplot_data_sub5 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3)+length(OFS_s4), 2, vcat(gev_sub1[:, i]...), n_sim, 0.99) for i in 1:length(OFS_s5)]...)
+# rl_boxplot_data_5 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3)+length(OFS_s4), 1, gev_all1[:, i], n_sim, 0.99) for i in 1:length(OFS_s5)]...)
+# rl_boxplot_data_t1s5 = vcat([rl_boxplot_data(i+length(OFS_s1)+length(OFS_s2)+length(OFS_s3)+length(OFS_s4), 3, vcat(gev_t1s5[:, i]...), n_sim, 0.99) for i in 1:length(OFS_s5)]...)
 ```
 
 ```{julia}
 rl_boxplot_data_all = vcat(rl_boxplot_data_sub1, rl_boxplot_data_1, rl_boxplot_data_t1s1, rl_boxplot_data_sub2, rl_boxplot_data_2, rl_boxplot_data_t1s2, rl_boxplot_data_sub3, rl_boxplot_data_3, rl_boxplot_data_t1s3, rl_boxplot_data_sub4, rl_boxplot_data_4, rl_boxplot_data_t1s4, rl_boxplot_data_sub5, rl_boxplot_data_5, rl_boxplot_data_t1s5)
+
+# select cross-validation runs
+rl_boxplot_data_all = rl_boxplot_data_all[rl_boxplot_data_all[:, 3] .!= 3, :]
 ```
 
 ```{julia}
-# learned from https://discourse.julialang.org/t/coloring-boxplot-groups-in-makie/62505
-using AlgebraOfGraphics
-label_dict = Dict(1.0 => "data1", 2.0 => "data2", 3.0 => "data3")
-model_info = [label_dict[value] for value in rl_boxplot_data_all[:, 3]]
-
-df = (stations = rl_boxplot_data_all[:, 2], precipitation = rl_boxplot_data_all[:, 1], model = model_info)
-plt = data(df) * mapping(:stations, :precipitation, color = :model => nonnumeric, dodge = :model => nonnumeric) * visual(BoxPlot);
-draw(plt)
+unique_stations = unique(rl_boxplot_data_all[:, 2])
+selected_stations = sample(unique_stations, 10, replace=false)
+rl_boxplot_data_all = rl_boxplot_data_all[[station in selected_stations for station in rl_boxplot_data_all[:, 2]], :]
+station_mapping = Dict(selected_stations[i] => i for i in 1:10)
+for i in 1:size(rl_boxplot_data_all, 1)
+    rl_boxplot_data_all[i, 2] = station_mapping[rl_boxplot_data_all[i, 2]]
+end
 ```
+
 ```{julia}
-fig = Figure(resolution = (1200, 500))
+# learned from https://discourse.julialang.org/t/create-legend-for-dodge-boxplot-in-makie/97824
+xs = round.(Int, rl_boxplot_data_all[:, 2])
+ys = rl_boxplot_data_all[:, 1]
+dodge = round.(Int, rl_boxplot_data_all[:, 3])
 
-p_boxplot = Axis(fig[1, 1];
-                 xlabel = "Stations",
-                 ylabel = "100 year return level estimates in 2022")
+f,a,p = CairoMakie.boxplot(xs, ys, dodge = dodge, show_notch = true,
+                           color = dodge)
 
-CairoMakie.boxplot!(
-    p_boxplot,
-    round.(Int, rl_boxplot_data_all[:, 2]),
-    rl_boxplot_data_all[:, 1],
-    dodge = round.(Int, rl_boxplot_data_all[:, 3]),
-    show_notch = true,
-    color = round.(Int, rl_boxplot_data_all[:, 3]),
-)
+# get current colormap
+cmap = getproperty(ColorSchemes, p.colormap[])
+# get colors used (length=2 in this case)
+ccolors = cmap[range(start=0.0, stop=1.0; length=length(unique(dodge)))]
 
-# Add custom legend
-annotate!(
-    p_boxplot, 
-    [(0, 0, CairoMakie.text("Legend Item 1", halign = :left)),
-     (0, 0, CairoMakie.text("Legend Item 2", halign = :left)),
-     (0, 0, CairoMakie.text("Legend Item 3", halign = :left))]
-)
+# build the marker elements
+elems = [[MarkerElement(color = col, marker=:circle, markersize = 15,
+        strokecolor = :black)] for col in ccolors]
 
-fig
+axislegend(a, elems, ["estimates using all stations", "out of sample estimates"]; position=:rt)
+
+a.xlabel = "station"
+a.ylabel = "100 year return level [inches/d]"
+a.xticks=(1:10, ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
+
+save(plotsdir("1d/box_plots_full.png"), f)
+```
+
+## out of sample predictability (for all stations)
+
+```{julia}
+# OFS: out of sample
+# in the function, i is the simluation number (in total n_sim)
+gev_dist_new(i, x, lons_new, lats_new, x_old, mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi, mu_beta, logs_beta, mu0, logs0) = GP_dist(mu_rho[i], mu_alpha[i], logs_rho[i], logs_alpha[i], mu0_rho[i], mu0_alpha[i], logs0_rho[i], logs0_alpha[i], xi[i], collect(mu_beta[i, :]), collect(logs_beta[i, :]), collect(mu0[i, :]), collect(logs0[i, :]), x_old, lons_new, lats_new, x)
+
+x_old_sub1 = Matrix(raw_stations[sub1_index, 2:3])'
+gev_sub1_OFS = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub1, mu_rho_sub1, mu_alpha_sub1, logs_rho_sub1, logs_alpha_sub1, mu0_rho_sub1, mu0_alpha_sub1, logs0_rho_sub1, logs0_alpha_sub1, xi_sub1, μ_beta_sub1, logσ_beta_sub1, μ0_sub1, logσ0_sub1) for i = 1:n_sim] for s in setdiff(1:n_stations, sub1_index)]...)
+
+x_old_sub2 = Matrix(raw_stations[sub2_index, 2:3])'
+gev_sub2_OFS = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub2, mu_rho_sub2, mu_alpha_sub2, logs_rho_sub2, logs_alpha_sub2, mu0_rho_sub2, mu0_alpha_sub2, logs0_rho_sub2, logs0_alpha_sub2, xi_sub2, μ_beta_sub2, logσ_beta_sub2, μ0_sub2, logσ0_sub2) for i = 1:n_sim] for s in setdiff(1:n_stations, sub2_index)]...)
+
+x_old_sub3 = Matrix(raw_stations[sub3_index, 2:3])'
+gev_sub3_OFS = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub3, mu_rho_sub3, mu_alpha_sub3, logs_rho_sub3, logs_alpha_sub3, mu0_rho_sub3, mu0_alpha_sub3, logs0_rho_sub3, logs0_alpha_sub3, xi_sub3, μ_beta_sub3, logσ_beta_sub3, μ0_sub3, logσ0_sub3) for i = 1:n_sim] for s in setdiff(1:n_stations, sub3_index)]...)
+
+x_old_sub4 = Matrix(raw_stations[sub4_index, 2:3])'
+gev_sub4_OFS = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub4, mu_rho_sub4, mu_alpha_sub4, logs_rho_sub4, logs_alpha_sub4, mu0_rho_sub4, mu0_alpha_sub4, logs0_rho_sub4, logs0_alpha_sub4, xi_sub4, μ_beta_sub4, logσ_beta_sub4, μ0_sub4, logσ0_sub4) for i = 1:n_sim] for s in setdiff(1:n_stations, sub4_index)]...)
+
+x_old_sub5 = Matrix(raw_stations[sub5_index, 2:3])'
+gev_sub5_OFS = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub5, mu_rho_sub5, mu_alpha_sub5, logs_rho_sub5, logs_alpha_sub5, mu0_rho_sub5, mu0_alpha_sub5, logs0_rho_sub5, logs0_alpha_sub5, xi_sub5, μ_beta_sub5, logσ_beta_sub5, μ0_sub5, logσ0_sub5) for i = 1:n_sim] for s in setdiff(1:n_stations, sub5_index)]...)
+```
+
+```{julia}
+# IS: in sample
+gev_sub1_IS = hcat([get_gev.(log_CO2_2022, μ0_sub1[:, s], μ_beta_sub1[:, s], logσ0_sub1[:, s], logσ_beta_sub1[:, s], xi_sub1) for s in 1:length(sub1_index)]...)
+gev_sub2_IS = hcat([get_gev.(log_CO2_2022, μ0_sub2[:, s], μ_beta_sub2[:, s], logσ0_sub2[:, s], logσ_beta_sub2[:, s], xi_sub2) for s in 1:length(sub2_index)]...)
+gev_sub3_IS = hcat([get_gev.(log_CO2_2022, μ0_sub3[:, s], μ_beta_sub3[:, s], logσ0_sub3[:, s], logσ_beta_sub3[:, s], xi_sub3) for s in 1:length(sub3_index)]...)
+gev_sub4_IS = hcat([get_gev.(log_CO2_2022, μ0_sub4[:, s], μ_beta_sub4[:, s], logσ0_sub4[:, s], logσ_beta_sub4[:, s], xi_sub4) for s in 1:length(sub4_index)]...)
+gev_sub5_IS = hcat([get_gev.(log_CO2_2022, μ0_sub5[:, s], μ_beta_sub5[:, s], logσ0_sub5[:, s], logσ_beta_sub5[:, s], xi_sub5) for s in 1:length(sub5_index)]...)
+```
+
+```{julia}
+# to rearrange the estimated gev distributions from station subsets
+function rearrage_gev(gev_IS, gev_OFS, sub_index)
+  gev_all = hcat(gev_IS, first.(gev_OFS))
+  index_all = vcat(sub_index, setdiff(1:n_stations, sub_index))
+
+  reverse_mapping = Dict(index_all[i] => i for i in 1:length(index_all))
+
+  gev_all = gev_all[:, [reverse_mapping[i] for i in 1:size(gev_all, 2)]]
+
+  return gev_all
+end
+
+gev_sub1_all = rearrage_gev(gev_sub1_IS, gev_sub1_OFS, sub1_index)
+gev_sub2_all = rearrage_gev(gev_sub2_IS, gev_sub2_OFS, sub2_index)
+gev_sub3_all = rearrage_gev(gev_sub3_IS, gev_sub3_OFS, sub3_index)
+gev_sub4_all = rearrage_gev(gev_sub4_IS, gev_sub4_OFS, sub4_index)
+gev_sub5_all = rearrage_gev(gev_sub5_IS, gev_sub5_OFS, sub5_index)
+
+gev_all = hcat([get_gev.(log_CO2_2022, μ0_all[:, s], μ_beta_all[:, s], logσ0_all[:, s], logσ_beta_all[:, s], xi_all) for s in 1:n_stations]...)
+```
+
+```{julia}
+# CV: cross validation
+
+function rl_CV(gev_sub1_all, gev_sub2_all, gev_sub3_all, gev_sub4_all, gev_sub5_all, gev_all, p)
+  rl_CV = fill(1.1, n_stations, 6)
+  rl_CV[:, 1] = [mean(quantile.(gev_sub1_all[:, s], p)) for s in 1:n_stations]
+  rl_CV[:, 2] = [mean(quantile.(gev_sub2_all[:, s], p)) for s in 1:n_stations]
+  rl_CV[:, 3] = [mean(quantile.(gev_sub3_all[:, s], p)) for s in 1:n_stations]
+  rl_CV[:, 4] = [mean(quantile.(gev_sub4_all[:, s], p)) for s in 1:n_stations]
+  rl_CV[:, 5] = [mean(quantile.(gev_sub5_all[:, s], p)) for s in 1:n_stations]
+  rl_CV[:, 6] = [mean(quantile.(gev_all[:, s], p)) for s in 1:n_stations]
+  return rl_CV
+end
+
+rl10_CV = rl_CV(gev_sub1_all, gev_sub2_all, gev_sub3_all, gev_sub4_all, gev_sub5_all, gev_all, 0.9)
+rl50_CV = rl_CV(gev_sub1_all, gev_sub2_all, gev_sub3_all, gev_sub4_all, gev_sub5_all, gev_all, 0.98)
+rl100_CV = rl_CV(gev_sub1_all, gev_sub2_all, gev_sub3_all, gev_sub4_all, gev_sub5_all, gev_all, 0.99)
+
+# CSV.write(datadir("processed/1d_results/rl10_CV.csv"), DataFrame(rl10_CV, :auto))
+# CSV.write(datadir("processed/1d_results/rl50_CV.csv"), DataFrame(rl50_CV, :auto))
+# CSV.write(datadir("processed/1d_results/rl100_CV.csv"), DataFrame(rl100_CV, :auto))
+```
+
+```{julia}
+rl_CV_all = [rl100_CV[:, i] for i in [6, 1, 2, 3, 4, 5]]
+
+rows = [1, 1, 2, 2, 3, 3]
+cols = [1, 2, 1, 2, 1, 2]
+res = (1600, 800)
+row_hs = [400, 375, 375]
+row_names = ["", "", "", "", "", ""]
+title_names = ["all stations", "subset1", "subset2", "subset3", "subset4", "subset5"]
+bar_names = ["", "inches", "", "inches", "", "inches"]
+ranges = fill((minimum(vcat(rl_CV_all...)), maximum(vcat(rl_CV_all...))), 6)
+p_n_obs_subs = map_points_subplots(raw_stations, rl_CV_all, :roma25, rows, cols, row_names, res, row_hs, title_names, ranges; diff_coord = false, bar_all = false, diff_colscheme = false, bar_name = bar_names)
+save(plotsdir("1d/rl100_CV.png"), p_n_obs_subs)
 ```
 
 ## Quantiles
 
+In sample quantiles
+
 ```{julia}
 raw_data_prcp = raw_data_all[:, 2:size(raw_data_all)[2]-1][:, sub1_index]
-# raw_data_prcp[1:111, :] .= missing
-# raw_data_prcp[123:134, :] .= missing
-raw_data_prcp[112:122, :] .= missing
+# raw_data_prcp[112:122, :] .= missing
 non_missing_count = [count(!ismissing, col) for col in eachcol(raw_data_prcp)]
 total_records = sum(non_missing_count)
 k = sim_quantiles(raw_data_prcp, μ_beta_sub1, logσ_beta_sub1, μ0_sub1, logσ0_sub1, xi_sub1, log_CO2, total_records)
@@ -300,4 +399,30 @@ quantile_sub1_outofsample = Plots.histogram(vec(k), bins=30, legend=false, xlabe
 hline!([1], color=:blue, linewidth=3)
 annotate!([0.95], [0.95], Plots.text("ideal", :right, 15, :blue))
 # save(plotsdir("1d/quantile_sub1_outofsample.png"), quantile_sub1_outofsample)
+```
+
+```{julia}
+function quantile_sub(sub_index, μ_beta_sub, logσ_beta_sub, μ0_sub, logσ0_sub, xi_sub, title_sub)
+  raw_data_prcp = raw_data_all[:, 2:size(raw_data_all)[2]-1][:, sub_index]
+  non_missing_count = [count(!ismissing, col) for col in eachcol(raw_data_prcp)]
+  total_records = sum(non_missing_count)
+  k = sim_quantiles(raw_data_prcp, μ_beta_sub, logσ_beta_sub, μ0_sub, logσ0_sub, xi_sub, log_CO2, total_records)
+  quantile_sub_IS = Plots.histogram(vec(k), bins=30, legend=false, xlabel="", ylabel="frequency", normalize=:pdf, fill=true, color=:grey, fillalpha=0.8, title=title_sub)
+  hline!([1], color=:blue, linewidth=3)
+  annotate!([0.95], [0.95], Plots.text("ideal", :right, 15, :blue))
+  return quantile_sub_IS
+end
+```
+
+```{julia}
+p_quantile_all = quantile_sub(1:n_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, "all stations")
+p_quantile_sub1 = quantile_sub(sub1_index, μ_beta_sub1, logσ_beta_sub1, μ0_sub1, logσ0_sub1, xi_sub1, "subset1")
+p_quantile_sub2 = quantile_sub(sub2_index, μ_beta_sub2, logσ_beta_sub2, μ0_sub2, logσ0_sub2, xi_sub2, "subset2")
+p_quantile_sub3 = quantile_sub(sub3_index, μ_beta_sub3, logσ_beta_sub3, μ0_sub3, logσ0_sub3, xi_sub3, "subset3")
+p_quantile_sub4 = quantile_sub(sub4_index, μ_beta_sub4, logσ_beta_sub4, μ0_sub4, logσ0_sub4, xi_sub4, "subset4")
+p_quantile_sub5 = quantile_sub(sub5_index, μ_beta_sub5, logσ_beta_sub5, μ0_sub5, logσ0_sub5, xi_sub5, "subset5")
+```
+
+```{julia}
+
 ```

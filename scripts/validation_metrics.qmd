@@ -1,0 +1,387 @@
+---
+title: "Validation metrics"
+jupyter: julia-1.9
+execute:
+  cache: true
+---
+
+This file contains calculations of different validation metrics for the three models
+
+# Setup
+
+Load in packages
+
+```{julia}
+#| code-fold: true
+using AlgebraOfGraphics
+using CairoMakie
+using CSV
+using DataFrames
+using Distributions
+using DrWatson
+using GeoJSON
+using GeoMakie
+using HTTP
+using Plots;
+```
+
+load commonly used functions
+
+```{julia}
+#| code-fold: true
+include(scriptsdir("params.jl")) # defines our parameters
+include(scriptsdir("get_data.jl")) # provides function to get the data
+include(scriptsdir("util.jl"))
+include(scriptsdir("plot_util.jl"));
+```
+
+# Load data
+
+```{julia}
+# all the raw data, including years, prcp and covariates
+raw_data_all = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_daily_30y.csv")))
+
+years = raw_data_all[:, 1]
+
+# CO2 climate covariate
+lnCO2 = DataFrame(CSV.File(datadir("processed/raw_1d/lnCO2.csv")))
+lnCO2 = vcat(lnCO2[:, :log_CO2], log(525))
+log_CO2 = lnCO2 .- mean(lnCO2[1:(length(lnCO2)-1)])
+log_CO2_2022 = log_CO2[length(log_CO2)-1]
+log_CO2_1940 = log_CO2[52]
+log_CO2_2005 = log_CO2[117]
+
+# raw precipiation intensity
+# missing values as negative
+# raw_data_all = coalesce.(raw_data_all, -99)
+raw_prcp = raw_data_all[:, 2:size(raw_data_all)[2]-1]
+
+# stations
+raw_stations = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_stations_30y.csv")))
+
+# total number of stations
+n_stations = size(raw_stations)[1];
+```
+
+Some general variables
+
+```{julia}
+# number of MCMC simulations
+n_sim = 20000;
+```
+
+# MCMC posterior results from R
+
+## Pooled Stationary Model
+
+```{julia}
+mu_rho_s_all, mu_alpha_s_all, logs_rho_s_all, logs_alpha_s_all, xi_s_all, mu_s_all, logs_s_all = read_MCMC_results_S("processed/1d_results/model_S_1M.csv", n_stations)
+mu_rho_s_t1, mu_alpha_s_t1, logs_rho_s_t1, logs_alpha_s_t1, xi_s_t1, mu_s_t1, logs_s_t1 = read_MCMC_results_S("processed/1d_results/model_S_t1_1M.csv", n_stations);
+```
+
+## Nonpooled Nonstationary Model
+
+```{julia}
+mu0_N_all, logs0_N_all, xi_N_all, mu_beta_N_all, logs_beta_N_all = read_MCMC_results_N("processed/1d_results/model_N_1M.csv", n_stations)
+mu0_N_t1, logs0_N_t1, xi_N_t1, mu_beta_N_t1, logs_beta_N_t1 = read_MCMC_results_N("processed/1d_results/model_N_t1_1M.csv", n_stations);
+```
+
+## Spatially Varying Covariate Model
+
+```{julia}
+mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_all_4rho_1Mruns.csv", n_stations)
+mu_rho_t1, mu_alpha_t1, logs_rho_t1, logs_alpha_t1, mu0_rho_t1, mu0_alpha_t1, logs0_rho_t1, logs0_alpha_t1, xi_all_t1, μ_beta_all_t1, logσ_beta_all_t1, μ0_all_t1, logσ0_all_t1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_allt1_1Mruns.csv", n_stations);
+```
+
+## for the excluded years 2000-2010
+
+```{julia}
+# used variables for QS calculation
+obs = raw_prcp ./ 25.4
+p_all = [0.9, 0.98, 0.99]
+```
+
+```{julia}
+# year 2000-2010
+# years[112:122]
+obs_t1 = (raw_prcp ./ 25.4)[112:122, :]
+log_CO2_t1 = log_CO2[112:122];
+```
+
+# quantile score (QS)
+
+```{julia}
+# all simulations for one year and one station
+function calculate_quantile_score0(obs, est_p, p)
+    qs = zeros(Float64, length(est_p))
+    for i in 1:length(est_p)
+        if obs - est_p[i] > 0
+            qs[i] = p * (obs - est_p[i])
+        else
+            qs[i] = (p - 1) * (obs - est_p[i])
+        end
+    end
+    return mean(qs)
+end
+```
+
+for the full model
+
+```{julia}
+# for a single station and year
+rl_p_full1(y_i, s, p) = rl_estimate_N0.(p, log_CO2[y_i], μ0_all_t1[:, s], μ_beta_all_t1[:, s], logσ0_all_t1[:, s], logσ_beta_all_t1[:, s], xi_all_t1)
+
+function calculate_quantile_score_full(obs, p)
+    # p is non-exceedance probability
+    qs = Array{Union{Float64,Missing}}(zeros(size(obs)[1], size(obs)[2]))
+    for t in 1:size(obs)[1]
+        for s in 1:size(obs)[2]
+            if ismissing(obs[t, s]) || obs[t, s] < 0
+                qs[t, s] = missing
+            else
+                # need to change 111 depending on what years are evaluated
+                qs[t, s] = calculate_quantile_score0(obs[t, s], rl_p_full1(t+111, s, p), p)
+            end
+        end
+    end
+    return sum(skipmissing(qs)) / count(!ismissing, qs)
+end
+
+[calculate_quantile_score_full(obs_t1, p) for p in p_all]
+```
+
+for the pooled stationary model
+
+```{julia}
+# for a single station and year, all simulations
+rl_p_S1(s, p) = quantile.(GeneralizedExtremeValue.(mu_s_t1[:, s], exp.(logs_s_t1[:, s]), xi_s_t1), p)
+
+function calculate_quantile_score_S(obs, p)
+    # p is non-exceedance probability
+    qs = Array{Union{Float64,Missing}}(zeros(size(obs)[1], size(obs)[2]))
+    for t in 1:size(obs)[1]
+        for s in 1:size(obs)[2]
+            if ismissing(obs[t, s]) || obs[t, s] < 0
+                qs[t, s] = missing
+            else
+                qs[t, s] = calculate_quantile_score0(obs[t, s], rl_p_S1(s, p), p)
+            end
+        end
+    end
+    return sum(skipmissing(qs)) / count(!ismissing, qs)
+end
+
+[calculate_quantile_score_S(obs_t1, p) for p in p_all]
+```
+
+for the nonpooled nonstationary model
+
+```{julia}
+# for a single station and year
+rl_p_N1(y_i, s, p) = rl_estimate_N0.(p, log_CO2[y_i], mu0_N_t1[:, s], mu_beta_N_t1[:, s], logs0_N_t1[:, s], logs_beta_N_t1[:, s], xi_N_t1[:, s])
+
+function calculate_quantile_score_N(obs, p)
+    # p is non-exceedance probability
+    qs = Array{Union{Float64,Missing}}(zeros(size(obs)[1], size(obs)[2]))
+    for t in 1:size(obs)[1]
+        for s in 1:size(obs)[2]
+            if ismissing(obs[t, s]) || obs[t, s] < 0
+                qs[t, s] = missing
+            else
+                # need to change 111 depending on what years are evaluated
+                qs[t, s] = calculate_quantile_score0(obs[t, s], rl_p_N1(t+111, s, p), p)
+            end
+        end
+    end
+    return sum(skipmissing(qs)) / count(!ismissing, qs)
+end
+
+[calculate_quantile_score_N(obs_t1, p) for p in p_all]
+```
+
+# CRPS
+
+```{julia}
+using QuadGK  # A Julia package for numerical integration
+
+function heaviside(y, observation)
+    return y >= observation ? 1.0 : 0.0
+end
+
+function crps(observation, forecast_cdf)
+    integrand(y) = (forecast_cdf(y) - heaviside(y, observation))^2
+    result, _ = quadgk(integrand, 0, 30)
+    return result
+end
+```
+
+for stationary models
+
+```{julia}
+function cdf_S(μ, σ, ξ)
+    function cdf_gev(y)
+        return cdf(GeneralizedExtremeValue(μ, σ, ξ), y)
+    end
+    return cdf_gev
+end
+
+function crps_S(mu, logs, xi, obs_d)
+    total_crps = 0.0
+    for y in 1:size(obs_d)[1]
+        print(y)
+        for s in 1:size(obs_d)[2]
+            print(s)
+            print(" ")
+            if !ismissing(obs_d[y, s])
+                GEV_cdf_s = cdf_S.(mu[:, s], exp.(logs[:, s]), xi)
+                crps_value = crps.(obs_d[y, s], GEV_cdf_s)
+                total_crps += sum(crps_value)
+            end
+        end
+    end
+    average_crps = total_crps / (sum(!ismissing(x) for x in eachcol(obs_d) for x in x) * length(xi))
+    return average_crps
+end
+```
+
+```{julia}
+crps_S(mu_s_t1, logs_s_t1, xi_s_t1, obs_t1)
+```
+
+for nonstationary models (Full Model and Nonpooled Nonstationary Model)
+
+```{julia}
+function cdf_N(μ_beta, logσ_beta, μ0, logσ0, ξ, x)
+    μ = μ0 + x * μ_beta
+    σ = exp(logσ0 + x * logσ_beta)
+    function cdf_gev(y)
+        return cdf(GeneralizedExtremeValue(μ, σ, ξ), y)
+    end
+    return cdf_gev
+end
+
+function crps_N(mu_beta, logs_beta, mu0, logs0, xi, CO2, obs_d)
+    total_crps = 0.0
+    for y in 1:size(obs_d)[1]
+        for s in 1:size(obs_d)[2]
+            if !ismissing(obs_d[y, s])
+                GEV_cdf_y = cdf_N.(mu_beta[:, s], logs_beta[:, s], mu0[:, s], logs0[:, s], xi[:, s], CO2[y])
+                crps_value = crps.(obs_d[y, s], GEV_cdf_y)
+                total_crps += sum(crps_value)
+            end
+        end
+    end
+    average_crps = total_crps / (sum(!ismissing(x) for x in eachcol(obs_t1) for x in x) * size(mu_beta)[1])
+    return average_crps
+end
+
+function crps_full(mu_beta, logs_beta, mu0, logs0, xi, CO2, obs_d)
+    total_crps = 0.0
+    for y in 1:size(obs_d)[1]
+        for s in 1:size(obs_d)[2]
+            if !ismissing(obs_d[y, s])
+                GEV_cdf_y = cdf_N.(mu_beta[:, s], logs_beta[:, s], mu0[:, s], logs0[:, s], xi, CO2[y])  
+                crps_value = crps.(obs_d[y, s], GEV_cdf_y)
+                total_crps += sum(crps_value)
+            end
+        end
+    end
+    average_crps = total_crps / (sum(!ismissing(x) for x in eachcol(obs_t1) for x in x) * size(mu_beta)[1])
+    return average_crps
+end
+```
+
+```{julia}
+# for the nonpooled nonstationary model
+crps_N(mu_beta_N_t1, logs_beta_N_t1, mu0_N_t1, logs0_N_t1, xi_N_t1, log_CO2_t1, obs_t1)
+```
+
+```{julia}
+# for the full model
+crps_full(μ_beta_all_t1, logσ_beta_all_t1, μ0_all_t1, logσ0_all_t1, xi_all_t1, log_CO2_t1, obs_t1)
+```
+
+# logarithmic score
+
+For stationary model (Pooled Stationary Model)
+
+```{julia}
+function logs_S(mu, logs, xi, obs_d)
+    total_logs = 0.0
+    for y in 1:size(obs_d)[1]
+        print(y)
+        for s in 1:size(obs_d)[2]
+            print(s)
+            print(" ")
+            if !ismissing(obs_d[y, s])
+                logpdf = log.(pdf.(GeneralizedExtremeValue.(mu[:, s], exp.(logs[:, s]), xi), obs_d[y, s]))
+                total_logs -= sum(logpdf)
+            end
+        end
+    end
+    average_logs = total_logs / (sum(!ismissing(x) for x in eachcol(obs_d) for x in x) * length(xi))
+    return average_logs
+end
+```
+
+```{julia}
+logs_S(mu_s_t1, logs_s_t1, xi_s_t1, obs_t1)
+```
+
+For nonstationary framework (Nonpooled Nonstationary & full model)
+
+```{julia}
+mu_beta_N_t1, logs_beta_N_t1, mu0_N_t1, logσ0_all_t1, xi_all_t1
+# mu_beta = mu_beta_N_t1
+# logs_beta = logs_beta_N_t1
+# mu0 = mu0_N_t1
+# logs0 = logs0_N_t1
+# xi = xi_N_t1
+# CO2 = log_CO2_t1
+
+# y = 1
+# s = 175
+
+# mu = mu0[:, s] .+ CO2[y] .* mu_beta[:, s]
+# sigma = exp.(logs0[:, s] .+ CO2[y] .* logs_beta[:, s])
+
+# logpdf = log.(pdf.(GeneralizedExtremeValue.(mu, sigma, xi[:, s]), obs_t1[y, s]))
+# mean(logpdf)
+# findall(isnan, logpdf)
+# pdf(GeneralizedExtremeValue(mu[10001], sigma[10001], xi[:, s][10001]), obs_t1[y, s])
+sigma[9000:10001]
+```
+
+```{julia}
+function logs_N(mu_beta, logs_beta, mu0, logs0, xi, CO2, obs_d, model_N)
+    total_logs = 0.0
+    for y in 1:size(obs_d)[1]
+        print(y)
+        for s in 1:size(obs_d)[2]
+            print(s)
+            print(" ")
+            if !ismissing(obs_d[y, s])
+                mu = mu0[:, s] .+ CO2[y] .* mu_beta[:, s]
+                sigma = exp.(logs0[:, s] .+ CO2[y] .* logs_beta[:, s])
+                if model_N == "nonpooled"
+                    xi_s = xi[:, s]
+                else 
+                    xi_s = xi
+                end
+                logpdf = log.(pdf.(GeneralizedExtremeValue.(mu, sigma, xi_s), obs_d[y, s]))
+                total_logs -= sum(logpdf)
+            end
+        end
+    end
+    average_logs = total_logs / (sum(!ismissing(x) for x in eachcol(obs_d) for x in x) * size(mu_beta)[1])
+    return average_logs
+end
+```
+
+```{julia}
+logS_NonN = logs_N(mu_beta_N_t1, logs_beta_N_t1, mu0_N_t1, logs0_N_t1, xi_N_t1, log_CO2_t1, obs_t1, "nonpooled")
+```
+
+```{julia}
+logS_full = logs_N(μ_beta_all_t1, logσ_beta_all_t1, μ0_all_t1, logσ0_all_t1, xi_all_t1, log_CO2_t1, obs_t1, "pooled")
+```

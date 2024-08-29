@@ -14,6 +14,7 @@ Load in packages
 ```{julia}
 #| code-fold: true
 using CairoMakie
+using ColorSchemes
 using CSV
 using DataFrames
 using Distributions
@@ -27,8 +28,11 @@ using Plots;
 load commonly used functions
 
 ```{julia}
-include("util.jl")
-include("plot_util.jl")
+#| code-fold: true
+include(scriptsdir("params.jl")) # defines our parameters
+include(scriptsdir("get_data.jl")) # provides function to get the data
+include(scriptsdir("util.jl"))
+include(scriptsdir("plot_util.jl"));
 ```
 
 # Load data
@@ -70,10 +74,10 @@ Some general variables
 
 ```{julia}
 # number of MCMC simulations
-n_sim = 10000
+n_sim = 20000
 ```
 
-## Map of number of observations
+# Map of number of observations
 
 ```{julia}
 # number of observations
@@ -88,94 +92,38 @@ p_n_obs = map_points(raw_stations, raw_stations[:, :n_obs], "observed years", (3
 ### Pooled Stationary Model
 
 ```{julia}
-mu_rho_s_all, mu_alpha_s_all, logs_rho_s_all, logs_alpha_s_all, xi_s_all, mu_s_all, logs_s_all = read_MCMC_results_S("processed/1d_results/pooled_stationary_posterior_all.csv", n_stations);
-```
-
-```{julia}
-rl100_S_mean, rl100_S_std = rl_etimate_S(raw_stations, mu_s_all, logs_s_all, xi_s_all, 0.99);
+mu_rho_s_all, mu_alpha_s_all, logs_rho_s_all, logs_alpha_s_all, xi_s_all, mu_s_all, logs_s_all = read_MCMC_results_S("processed/1d_results/model_S_1M.csv", n_stations);
 ```
 
 ### Nonpooled Nonstationary Model
 
 ```{julia}
-mu0_N_all, logs0_N_all, xi_N_all, mu_beta_N_all, logs_beta_N_all = read_MCMC_results_N("processed/1d_results/model_N_all.csv", n_stations)
-mu0_N_t1, logs0_N_t1, xi_N_t1, mu_beta_N_t1, logs_beta_N_t1 = read_MCMC_results_N("processed/1d_results/model_N_t1.csv", n_stations);
-```
-
-```{julia}
-rl100_N_mean, rl100_N_std = rl_estimate_N(raw_stations, mu0_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022, 0.99);
+mu0_N_all, logs0_N_all, xi_N_all, mu_beta_N_all, logs_beta_N_all = read_MCMC_results_N("processed/1d_results/model_N_1M.csv", n_stations);
 ```
 
 ### Spatially Varying Covariate Model
 
 ```{julia}
-mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_posterior_all_4rho.csv", n_stations)
-# mu_rho_t1, mu_alpha_t1, logs_rho_t1, logs_alpha_t1, mu0_rho_t1, mu0_alpha_t1, logs0_rho_t1, logs0_alpha_t1, xi_t1, μ_beta_t1, logσ_beta_t1, μ0_t1, logσ0_t1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_posterior_all_4rho.csv", n_stations);
+mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_all_4rho_1Mruns.csv", n_stations);
 ```
 
 ## validation: Quantiles (simulated stations and years)
 
 ```{julia}
 # for using all data
-non_missing_count = [count(!ismissing, col) for col in eachcol(raw_prcp)]
-total_records = sum(non_missing_count)
-k = sim_quantiles(raw_prcp, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2, total_records)
-quantile_all_singlePlot = Plots.histogram(vec(k), bins = 30, legend = false, xlabel = "", ylabel = "frequency", normalize = :pdf, fill = true, color = :grey, fillalpha = 0.8, title = "")
-hline!([1], color = :blue, linewidth = 3)
-annotate!([0.95], [0.95], Plots.text("ideal", :right, 15, :blue))
-# save(plotsdir("1d/quantiles_all_singlePlot.png"), quantile_all_singlePlot)
+# non_missing_count = [count(!ismissing, col) for col in eachcol(raw_prcp)]
+# total_records = sum(non_missing_count)
+# k = sim_quantiles(raw_prcp, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2, total_records, n_sim)
+quantile_all_singlePlot = Plots.histogram(vec(k), bins = 30, legend = false, xlabel = "quantile", ylabel = "frequency", normalize = :pdf, fill = true, color = :grey, fillalpha = 0.6, title = "")
+hline!([1], color = :blue, linewidth = 3, xlabelfontsize = 10, ylabelfontsize = 10)
+annotate!([0.95], [0.95], Plots.text("ideal", :right, 10, :blue))
+save(plotsdir("1d/quantiles_all_singlePlot.png"), quantile_all_singlePlot)
 ```
 
-## quantile score (for the excluded years)
+## trends in points (Full Model)
 
 ```{julia}
-function calculate_quantile_score(obs, est_p, p)
-    # p is non-exceedance probability
-    qs = Array{Union{Float64,Missing}}(zeros(size(obs)[1], size(obs)[2]))
-    for i = 1:size(obs)[1]
-        for j = 1:size(obs)[2]
-            if ismissing(obs[i, j]) || obs[i, j] < 0
-                qs[i, j] = missing
-            else
-                if obs[i, j] - est_p[i, j] >= 0
-                    qs[i, j] = p * (obs[i, j] - est_p[i, j])
-                else
-                    qs[i, j] = (p - 1) * (obs[i, j] - est_p[i, j])
-                end
-            end
-        end
-    end
-    return sum(skipmissing(qs)) / count(!ismissing, qs)
-end
-```
-
-for the full model
-
-```{julia}
-obs = raw_prcp ./ 25.4
-p_all = [0.9, 0.98, 0.99]
-
-rl_p_full(p) = hcat([rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, c, p)[1] for c in log_CO2]...)'
-[calculate_quantile_score(obs, rl_p_full(p), p) for p in p_all]
-```
-
-for the pooled stationary model
-
-```{julia}
-rl_p_S(p) = hcat([rl_etimate_S(raw_stations, mu_s_all, logs_s_all, xi_s_all, p)[1] for _ in log_CO2]...)'
-[calculate_quantile_score(obs, rl_p_S(p), p) for p in p_all]
-```
-
-for the nonpooled nonstationary model
-
-```{julia}
-rl_p_N(p) = hcat([rl_estimate_N(raw_stations, mu_beta_all_non, logs_beta_all_non, mu0_all_non, logs0_all_non, xi_all_non, c, p)[1] for c in log_CO2]...)'
-[calculate_quantile_score(obs, rl_p_N(p), p) for p in p_all]
-```
-
-## trends in points
-
-```{julia}
+# Spatially Varying Covariate Model
 mean_stations_10_all_1940, std_stations_10_all_1940 = rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_1940, 0.9)
 mean_stations_50_all_1940, std_stations_50_all_1940 = rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_1940, 0.98)
 mean_stations_100_all_1940, std_stations_100_all_1940 = rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_1940, 0.99)
@@ -192,13 +140,13 @@ rows = [1, 1, 1, 2, 2, 2, 3, 3, 3]
 cols = [1, 2, 3, 1, 2, 3, 1, 2, 3]
 res = (2000, 700)
 row_hs = [400, 375, 375]
-row_names = ["2022", "", "", "1940", "", "", "2022-1940", "", ""]
+row_names = ["2022", "", "", "1940", "", "", "(2022-1940)/2022", "", ""]
 title_names = ["10 year", "50 year", "100 year", "", "", "", "", "", ""]
 bar_names = ["", "", "inches/d", "", "", "inches/d", "", "", "%"]
-ranges = [(5, 16), (5, 16), (5, 16), (5, 16), (5, 16), (5, 16), (15, 30), (15, 30), (15, 30)]
+ranges = [(5, 16), (5, 16), (5, 16), (5, 16), (5, 16), (5, 16), (10, 35), (10, 35), (10, 35)]
 colors = [:roma25, :roma25, :roma25, :roma25, :roma25, :roma25, :BuPu, :BuPu, :BuPu]
 p_trend_points = map_points_subplots(raw_stations, trend_df, colors, rows, cols, row_names, res, row_hs, title_names, ranges; diff_coord = false, bar_all = false, diff_colscheme = true, bar_name = bar_names)
-save(plotsdir("1d/p_trend_points.png"), p_trend_points)
+# save(plotsdir("1d/p_trend_points.png"), p_trend_points)
 ```
 
 ## model comparison
@@ -223,7 +171,7 @@ ranges = [(-1, 1) .* maximum(abs.([maximum(μ_beta_N_mean), minimum(μ_beta_N_me
 
 p_coefficients = map_points_subplots(raw_stations, coefficients_results, [:PuOr, :BuPu, :PuOr, :BuPu], rows, cols, row_names, res, row_hs, title_names, ranges; diff_coord = false, bar_all = true, diff_colscheme = true)
 
-save(plotsdir("1d/p_coefficients.png"), p_coefficients)
+# save(plotsdir("1d/p_coefficients.png"), p_coefficients)
 ```
 
 ### point return level estimates
@@ -252,12 +200,13 @@ ranges_mean = [(6, 9), (9, 13), (10, 16.5), (6, 9), (9, 13), (10, 16.5), (6, 9),
 
 ranges_std = [(0, 1), (0, 2), (0, 3), (0, 1), (0, 2), (0, 3), (0, 1), (0, 2), (0, 3)]
 
-p_rl_points_mean = map_points_subplots(raw_stations, rl_results_mean, :roma25, rows, cols, row_names, res, row_hs, title_names, ranges_mean; diff_coord = false, bar_all = false, diff_colscheme = false)
+bar_names = ["inches/d", "inches/d", "inches/d", "inches/d", "inches/d", "inches/d", "inches/d", "inches/d", "inches/d"]
+p_rl_points_mean = map_points_subplots(raw_stations, rl_results_mean, :roma25, rows, cols, row_names, res, row_hs, title_names, ranges_mean; diff_coord = false, bar_all = false, diff_colscheme = false, bar_name = bar_names)
 
-p_rl_points_std = map_points_subplots(raw_stations, rl_results_std, :GnBu, rows, cols, row_names, res, row_hs, title_names, ranges_std; diff_coord = false, bar_all = false, diff_colscheme = false)
+p_rl_points_std = map_points_subplots(raw_stations, rl_results_std, :GnBu, rows, cols, row_names, res, row_hs, title_names, ranges_std; diff_coord = false, bar_all = false, diff_colscheme = false, bar_name = bar_names)
 
-# save(plotsdir("1d/model_comparison_rlmean.png"), p_rl_points_mean)
-# save(plotsdir("1d/model_comparison_rlstd.png"), p_rl_points_std)
+save(plotsdir("1d/model_comparison_rlmean.png"), p_rl_points_mean)
+save(plotsdir("1d/model_comparison_rlstd.png"), p_rl_points_std)
 ```
 
 ## compare with Atlas 14
@@ -280,10 +229,10 @@ cols = [2, 3, 4, 5, 6, 7]
 df_Altas14 = DataFrame(CSV.File(datadir("processed/1d_results/Atlas14_1d.csv")))
 Atlas14_rl10_1d = df_Altas14[:, 1]
 Atlas14_rl50_1d = df_Altas14[:, 2]
-Atlas14_rl100_1d = df_Altas14[:, 3]
+Atlas14_rl100_1d = df_Altas14[:, 3];
 ```
 
-### map of Atlas 14 comparison
+### map of Atlas 14 comparison (different models)
 
 ```{julia}
 Atlas14_comparison = [
@@ -303,23 +252,23 @@ cols = [1, 2, 3, 1, 2, 3, 1, 2, 3]
 res = (2000, 700)
 row_hs = [400, 375, 375]
 row_names = ["10 year", "", "", "50 year", "", "", "100 year", "", ""]
-title_names = ["pooled stationary", "nonpooled nonstationary", "pooled nonstationary", "", "", "", "", "", ""]
+title_names = ["Pooled Stationary Model", "Nonpooled Nonstationary Model", "Spatially Varying Covariate Model", "", "", "", "", "", ""]
 
 ranges = fill((-30, 30), length(Atlas14_comparison))
 
-p_Atlas14_diff = map_points_subplots(raw_stations, Atlas14_comparison, :RdBu, rows, cols, row_names, res, row_hs, title_names, ranges; diff_coord = false, bar_all = false, diff_colscheme = false)
+bar_names = ["%", "%", "%", "%", "%", "%", "%", "%", "%"]
+p_Atlas14_diff = map_points_subplots(raw_stations, Atlas14_comparison, :RdBu, rows, cols, row_names, res, row_hs, title_names, ranges; diff_coord = false, bar_all = false, diff_colscheme = false, bar_name = bar_names)
 
 save(plotsdir("1d/Atlas14_comparison.png"), p_Atlas14_diff)
 ```
 
-### time series of Atlas 14 comparison
+### time series of Atlas 14 comparison (full model)
 
 ```{julia}
 # Houston, 29.7914, -95.4261, 121
 # New Orleans, 29.9167, -90.1303, 168
 # Galveston, 29.2703, -94.8642, 167
 # Mobile, 30.6833, -88.0333, 5
-# mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all
 index_cities = [121, 168, 167, 5]
 
 # time series of the GEV distributions
@@ -329,9 +278,9 @@ ts_dist_Gal = [get_dist_MCMC_full(index_cities[3], μ_beta_all, logσ_beta_all, 
 ts_dist_Mob = [get_dist_MCMC_full(index_cities[4], μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, x) for x in log_CO2]
 
 p_Hou = plot_time_series(vcat(years, 2050), "Houston, TX", ts_dist_Hou; x_label = "", y_label = "100 year return level [inches/d]", Atlas14 = Atlas14_rl100_1d[index_cities[1]])
-p_NOLA = plot_time_series(vcat(years, 2050), "New Orleans, LA", ts_dist_NOLA; x_label = "", y_label = " ", Atlas14 = Atlas14_rl100_1d[index_cities[2]])
-p_Gal = plot_time_series(vcat(years, 2050), "Galveston, TX", ts_dist_Gal; x_label = "Year", y_label = "100 year return level [inches/d]", Atlas14 = Atlas14_rl100_1d[index_cities[3]])
-p_Mob = plot_time_series(vcat(years, 2050), "Mobile, AL", ts_dist_Mob; x_label = "Year", y_label = " ", Atlas14 = Atlas14_rl100_1d[index_cities[4]])
+p_NOLA = plot_time_series(vcat(years, 2050), "New Orleans, LA", ts_dist_NOLA; x_label = "", y_label = " ", Atlas14 = Atlas14_rl100_1d[index_cities[2]], lengend_loc = false)
+p_Gal = plot_time_series(vcat(years, 2050), "Galveston, TX", ts_dist_Gal; x_label = "Year", y_label = "100 year return level [inches/d]", Atlas14 = Atlas14_rl100_1d[index_cities[3]], lengend_loc = false)
+p_Mob = plot_time_series(vcat(years, 2050), "Mobile, AL", ts_dist_Mob; x_label = "Year", y_label = " ", Atlas14 = Atlas14_rl100_1d[index_cities[4]], lengend_loc = false);
 ```
 
 ```{julia}
@@ -354,7 +303,7 @@ Plots.plot!(p_ts_cities, left_margin = 10Plots.mm, bottom_margin = 5Plots.mm)
 save(plotsdir("1d/p_ts_cities.png"), p_ts_cities)
 ```
 
-## Single location return level estimate
+### Single location all return level estimate (three models)
 
 ```{julia}
 cities_names = ["Houston, TX", "New Orleans, LA", "Galveston, TX", "Mobile, AL"]
@@ -365,20 +314,19 @@ index_cities = [121, 168, 167, 5]
 # Galveston, 29.2703, -94.8642, 167
 # Mobile, 30.6833, -88.0333, 5
 
-Atlas_14_Hou = get_Atlas14_IDF(string(coords[1][2]), string(coords[1][1]))
-Atlas_14_NOLA = get_Atlas14_IDF(string(coords[2][2]), string(coords[2][1]))
-Atlas_14_Gal = get_Atlas14_IDF(string(coords[3][2]), string(coords[3][1]))
-Atlas_14_Mob = get_Atlas14_IDF(string(coords[4][2]), string(coords[4][1]))
+# Atlas_14_Hou = get_Atlas14_IDF(string(coords_cities[1][2]), string(coords_cities[1][1]))
+# Atlas_14_NOLA = get_Atlas14_IDF(string(coords_cities[2][2]), string(coords_cities[2][1]))
+# Atlas_14_Gal = get_Atlas14_IDF(string(coords_cities[3][2]), string(coords_cities[3][1]))
+# Atlas_14_Mob = get_Atlas14_IDF(string(coords_cities[4][2]), string(coords_cities[4][1]))
 
 dist_Hou_S = get_dist_MCMC_S(index_cities[1], mu_s_all, logs_s_all, xi_s_all)
 dist_NOLA_S = get_dist_MCMC_S(index_cities[2], mu_s_all, logs_s_all, xi_s_all)
 dist_Gal_S = get_dist_MCMC_S(index_cities[3], mu_s_all, logs_s_all, xi_s_all)
 dist_Mob_S = get_dist_MCMC_S(index_cities[4], mu_s_all, logs_s_all, xi_s_all)
-
-p_rl_Hou_S = plot_return_period(Atlas_14_Hou, "Pooled Stationary Model", (0, 25), dist_Hou_S, lengend_loc=:topleft, x_label="", y_label=cities_names[1])
-p_rl_NOLA_S = plot_return_period(Atlas_14_NOLA, "", (0, 25), dist_NOLA_S, lengend_loc=false, x_label="", y_label=cities_names[2])
-p_rl_Gal_S = plot_return_period(Atlas_14_Gal, "", (0, 25), dist_Gal_S, lengend_loc=false, x_label="", y_label=cities_names[3])
-p_rl_Mob_S = plot_return_period(Atlas_14_Mob, "", (0, 25), dist_Mob_S, lengend_loc=false, x_label="", y_label=cities_names[4])
+p_rl_Hou_S = plot_return_period(Atlas_14_Hou, "Pooled Stationary Model", (0, 50), dist_Hou_S, lengend_loc=:topleft, x_label="", y_label=cities_names[1])
+p_rl_NOLA_S = plot_return_period(Atlas_14_NOLA, "", (0, 50), dist_NOLA_S, lengend_loc=false, x_label="", y_label=cities_names[2])
+p_rl_Gal_S = plot_return_period(Atlas_14_Gal, "", (0, 50), dist_Gal_S, lengend_loc=false, x_label="", y_label=cities_names[3])
+p_rl_Mob_S = plot_return_period(Atlas_14_Mob, "", (0, 50), dist_Mob_S, lengend_loc=false, x_label="", y_label=cities_names[4])
 
 dist_Hou_N = get_dist_MCMC_N(index_cities[1], mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022)
 dist_NOLA_N = get_dist_MCMC_N(index_cities[2], mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022)
@@ -393,10 +341,10 @@ dist_Hou_full = get_dist_MCMC_full(index_cities[1], μ_beta_all, logσ_beta_all,
 dist_NOLA_full = get_dist_MCMC_full(index_cities[2], μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022)
 dist_Gal_full = get_dist_MCMC_full(index_cities[3], μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022)
 dist_Mob_full = get_dist_MCMC_full(index_cities[4], μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022)
-p_rl_Hou_full = plot_return_period(Atlas_14_Hou, "Spatially Varying Covariate Model", (0, 25), dist_Hou_full, lengend_loc = false, x_label = "", y_label = "")
-p_rl_NOLA_full = plot_return_period(Atlas_14_NOLA, "", (0, 25), dist_NOLA_full, lengend_loc = false, x_label = "", y_label = "")
-p_rl_Gal_full = plot_return_period(Atlas_14_Gal, "", (0, 25), dist_Gal_full, lengend_loc = false, x_label = "", y_label = "")
-p_rl_Mob_full = plot_return_period(Atlas_14_Mob, "", (0, 25), dist_Mob_full, lengend_loc = false, x_label = "", y_label = "")
+p_rl_Hou_full = plot_return_period(Atlas_14_Hou, "Spatially Varying Covariate Model", (0, 50), dist_Hou_full, lengend_loc = false, x_label = "", y_label = "")
+p_rl_NOLA_full = plot_return_period(Atlas_14_NOLA, "", (0, 50), dist_NOLA_full, lengend_loc = false, x_label = "", y_label = "")
+p_rl_Gal_full = plot_return_period(Atlas_14_Gal, "", (0, 50), dist_Gal_full, lengend_loc = false, x_label = "", y_label = "")
+p_rl_Mob_full = plot_return_period(Atlas_14_Mob, "", (0, 50), dist_Mob_full, lengend_loc = false, x_label = "", y_label = "");
 ```
 
 ```{julia}
@@ -409,14 +357,14 @@ layout = @layout [
 p_rl_stations = Plots.plot(
     p_rl_Hou_S, p_rl_Hou_N, p_rl_Hou_full,
     p_rl_NOLA_S, p_rl_NOLA_N, p_rl_NOLA_full, 
-    p_rl_Gal_N, p_rl_Gal_N, p_rl_Gal_full, 
-    p_rl_Mob_N, p_rl_Mob_N, p_rl_Mob_full, 
+    p_rl_Gal_S, p_rl_Gal_N, p_rl_Gal_full, 
+    p_rl_Mob_S, p_rl_Mob_N, p_rl_Mob_full, 
     layout = layout,
     size = (1800, 1500),
 )
 Plots.plot!(p_rl_stations, left_margin = 10Plots.mm, bottom_margin = 10Plots.mm)
 
-# save(plotsdir("1d/p_rl_stations.png"), p_rl_stations)
+save(plotsdir("1d/p_rl_stations.png"), p_rl_stations)
 ```
 
 ## gridded MCMC results

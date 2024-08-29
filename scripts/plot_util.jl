@@ -44,10 +44,13 @@ function map_points_subplots(points_df, all_data, colorschemes, rows, cols, row_
     # point_df: stations with coordinates
     # all_data: a vector with all the plotting vectors
     # diff_coord: if plotting for the same points
-    states = download(
-        "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
-    )
-    states_geo = GeoJSON.read(read(states, String))
+    # states = download(
+    #     "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
+    # )
+
+    # using local states file
+    file_path = datadir("raw/us-states.json")
+    states_geo = GeoJSON.read(read(file_path, String))
 
     Δ = 0.25
 

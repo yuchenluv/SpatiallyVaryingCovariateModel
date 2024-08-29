@@ -44,8 +44,7 @@ X = cbind(lons, lats) # coordinates
 log_CO2 = data[, length(data)] # CO2 covariate
 
 # exculde 2000-2010
-prcp_t1 = prcp
-prcp_t1[112:122, ] = -99/25.4
+# prcp[112:122, ] = -99/25.4
 ```
 
 Functions for MAP and MCMC simulations
@@ -79,7 +78,7 @@ MAP_fit <- function(model, data){
 MCMC_fit <- function(model, data, init_list){
   fit = sampling(object = model, # Stan model (compiled)
                  data = data, # Data as a named list
-                 iter = 5000, chains = 4, algorithm = "NUTS", 
+                 iter = 10000, chains = 4, algorithm = "NUTS", 
                  init = list(init_list, init_list, init_list, init_list))
 }
 ```
@@ -91,12 +90,12 @@ model_S = stan_model("Pooled-Stationary-Model.stan")
 data_S = list(n_station = dim(prcp)[2],
               n_obs = n_obs,
               X = X,
-              y = prcp_t1)
+              y = prcp)
 model_S_MAP = MAP_fit(model_S, data_S)
 init_list_model_S = as.list(model_S_MAP$par)
 model_S_MCMC = MCMC_fit(model_S, data_S, init_list_model_S)
   
-file_path = "../../data/processed/1d_results/model_S_t1.Rds"
+file_path = "../../data/processed/1d_results/model_S_1M.Rds"
 saveRDS(model_S_MCMC, file_path)
 model_S_MCMC
 ```
@@ -104,7 +103,7 @@ model_S_MCMC
 Load previous results (if MCMC was done before)
 
 ```{r}
-# model_S_MCMC = readRDS("../../data/processed/1d_results/model_S_all.Rds")
+model_S_MCMC = readRDS("../../data/processed/1d_results/model_S_1M.Rds")
 model_S_MCMC
 ```
 
@@ -119,8 +118,8 @@ extract_MCMC <- function(MCMC_posterior_all, variable, station_i){
 ```{r}
 variables_S = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "xi")
 n_s = n_station
-model_S_MCMC_i = readRDS("../../data/processed/1d_results/model_S_t1.Rds")
-model_S_posterior = matrix(0, nrow = 10000, nc = 5+2*n_s)
+model_S_MCMC_i = readRDS("../../data/processed/1d_results/model_S_t1_1M.Rds")
+model_S_posterior = matrix(0, nrow = 20000, nc = 5+2*n_s)
 
 for (v in 1:length(variables_S)){
   model_S_posterior[ , v] = unlist(rstan::extract(model_S_MCMC_i, paste(variables_S[v], sep = "")))
@@ -132,6 +131,6 @@ for (s in 1:n_s){
   model_S_posterior[ , length(variables_S)+n_s+s] = extract_MCMC(model_S_MCMC_i, "logs", s)
 }
 model_S_posterior = as.data.frame(model_S_posterior)
-file_path = "../../data/processed/1d_results/model_S_t1.csv"
+file_path = "../../data/processed/1d_results/model_S_t1_1M.csv"
 write.csv(model_S_posterior, file_path)
 ```
