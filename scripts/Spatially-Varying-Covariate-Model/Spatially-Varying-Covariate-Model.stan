@@ -89,6 +89,7 @@ model{
     logs0_K[n, n] = logs0_K[n, n] + 10e-6;
   logs0_K_xi = cholesky_decompose(logs0_K);
   
+  // priors
   mu_rho ~ gamma(5, 1);
   mu_alpha ~ inv_gamma(5, 5);
   logs_rho ~ gamma(5, 1);

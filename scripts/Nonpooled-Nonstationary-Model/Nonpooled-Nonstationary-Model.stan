@@ -36,9 +36,9 @@ data {
 
 parameters{
   real mu0;
-  real logs0;
+  real logs0; // use logarithm to ensure positive scale parameter
   
-  real<lower=0> xi; // GEV shape parameter, same for all locations
+  real<lower=0> xi; // GEV shape parameter
   
   real mu_beta;// coefficients for mu
   real logs_beta;// coefficients for sigma

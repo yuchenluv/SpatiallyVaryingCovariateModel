@@ -30,10 +30,10 @@ Referenced from https://mc-stan.org/docs/2_19/stan-users-guide/simulating-from-a
 */
 
 data {
-  int<lower=1> n_station;
-  int<lower=1> n_obs;
+  int<lower=1> n_station; //number of total stations
+  int<lower=1> n_obs; //number of years
   vector[2] X[n_station]; //locations, longitude & latitude
-  matrix[n_obs, n_station] y; //observations of rainfall, indexed by [time, location]
+  matrix[n_obs, n_station] y; //rainfall observations, indexed by [time, location]
 }
 
 parameters{

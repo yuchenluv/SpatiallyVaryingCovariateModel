@@ -45,25 +45,3 @@ Save data to csv so can be used in r
 # CSV.write(datadir("processed/raw_1d/GHCN_stations_30y.csv"), stations_inventory_valid)
 CSV.write(datadir("processed/raw_1d/lnCO2.csv"), lnCO2)
 ```
-
-```{julia}
-using Distributions
-using Plots
-
-# Define parameters for the inverse gamma distribution
-alpha = 2.0  # shape parameter (α)
-beta = 1.0   # scale parameter (β)
-
-# Create an inverse gamma distribution object
-inv_gamma_dist = InverseGamma(alpha, beta)
-
-# Generate x values for the plot
-x_values = collect(range(0.01, stop=5.0, length=100))
-
-# Calculate the PDF values for the given x values
-pdf_values = pdf(inv_gamma_dist, x_values)
-
-# Plot the PDF of the inverse gamma distribution
-plot(x_values, pdf_values, xlabel="x", ylabel="Probability Density", label="Inverse Gamma Distribution", lw=2)
-
-```

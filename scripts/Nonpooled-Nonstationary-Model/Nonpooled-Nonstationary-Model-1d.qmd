@@ -34,6 +34,7 @@ stations = read.csv("../../data/processed/raw_1d/GHCN_stations_30y.csv") # stati
 prcp = data[, 3:length(data)-1]
 prcp[is.na(prcp)] <- -99 # change NA to negative values, could be detected in r stan
 prcp = as.matrix(prcp/25.4) # mm to inches
+prcp = prcp * 1.11 # change 1d to 24h observations
 
 n_station = dim(prcp)[2] # number of synthetic stations
 n_obs = dim(prcp)[1] # number of years
@@ -42,9 +43,6 @@ lats = stations[, 2]
 X = cbind(lons, lats) # coordinates
 
 log_CO2 = data[, length(data)] # CO2 covariate
-
-# exculde 2000-2010
-prcp[112:122, ] = -99/25.4
 ```
 
 Functions for MAP and MCMC simulations
@@ -85,12 +83,28 @@ MCMC_fit <- function(model, data, init_list){
 
 MAP and MCMC runs (5000 iterations 4 chains)
 
+Define the dataset for simulations
+
+```{r}
+# for all data
+prcp_i = prcp
+lons_i = lons
+lats_i = lats
+X_i = X
+
+# to exclude some years
+years = data[,1]
+year1_indices = seq(1, length(years), by = 2)
+year2_indices = seq(2, length(years), by = 2)
+prcp_i[year1_indices, ] = -99/25.4 # year2, even years
+```
+
 ```{r}
 model_N = stan_model("Nonpooled-Nonstationary-Model.stan")
 model_N_posterior = matrix(0, nrow = 20000, nc = 5*n_station)
 for (i in 1:n_station){
   data_N = list(n_obs = n_obs,
-                y = prcp[, i],
+                y = prcp_i[, i],
                 x = log_CO2)
   
   model_N_MAP = MAP_fit(model_N, data_N)
@@ -106,5 +120,5 @@ for (i in 1:n_station){
 ```
 
 ```{r}
-write.csv(model_N_posterior, "../../data/processed/1d_results/model_N_t1_1M.csv")
+write.csv(model_N_posterior, "../../data/processed/1d_results/model_N_y2_10Kruns.csv")
 ```
