@@ -17,12 +17,17 @@ using CairoMakie
 using ColorSchemes
 using CSV
 using DataFrames
+using DataFramesMeta
+using Dates
 using Distributions
 using DrWatson
 using GeoJSON
 using GeoMakie
 using HTTP
-using Plots;
+using Plots
+using StatsBase
+
+CairoMakie.activate!(type="svg");
 ```
 
 load commonly used functions
@@ -31,7 +36,7 @@ load commonly used functions
 #| code-fold: true
 include(scriptsdir("params.jl")) # defines our parameters
 include(scriptsdir("get_data.jl")) # provides function to get the data
-include(scriptsdir("util.jl"))
+include(scriptsdir("cal_util.jl"))
 include(scriptsdir("plot_util.jl"));
 ```
 
@@ -54,7 +59,7 @@ log_CO2_2005 = log_CO2[117]
 # raw precipiation intensity
 # missing values as negative
 # raw_data_all = coalesce.(raw_data_all, -99)
-raw_prcp = raw_data_all[:, 2:size(raw_data_all)[2]-1]
+raw_prcp = raw_data_all[:, 2:size(raw_data_all)[2]-1] .* 1.11
 
 # stations
 raw_stations = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_stations_30y.csv")))
@@ -63,6 +68,29 @@ raw_stations = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_stations_30y.cs
 n_stations = size(raw_stations)[1];
 ```
 
+Some general variables
+
+```{julia}
+# number of MCMC simulations
+n_sim = 20000
+
+# variables for plotting maps
+states = download(
+    "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
+)
+states_geo = GeoJSON.read(read(states, String))
+
+Δ = 0.25
+lonlims = (minimum(raw_stations[!, :lon]) - Δ, maximum(raw_stations[!, :lon]) + Δ)
+latlims = (minimum(raw_stations[!, :lat]) - Δ, maximum(raw_stations[!, :lat]) + Δ)
+
+function point_axis1(ax, title_name, ylabel_name, var, colorscheme, range, with_xticks, with_yticks)
+    return point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, raw_stations, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size)
+end
+```
+
+# Map of number of observations
+
 ```{julia}
 # get the number of observations for each station
 obs_counts = [count(!ismissing, raw_prcp[!, col]) for col in names(raw_prcp)]
@@ -70,19 +98,37 @@ raw_stations.n_obs = obs_counts;
 raw_data_df = raw_stations # substitute raw_data_df later
 ```
 
-Some general variables
-
-```{julia}
-# number of MCMC simulations
-n_sim = 20000
-```
-
-# Map of number of observations
-
 ```{julia}
 # number of observations
-p_n_obs = map_points(raw_stations, raw_stations[:, :n_obs], "observed years", (30, 120), :matter, "", (1000, 300))
-# save(plotsdir("1d/raw_data_nobs_all.png"), p_n_obs)
+f_width = 700
+f_height = 225
+f_obs = Figure(resolution = (f_width, f_height), fontsize=20)
+
+width = f_width - 180
+height = f_height - 60
+h1 = point_axis(f_obs[1, 1], "", lonlims, latlims, "", width, height, states_geo, raw_stations, raw_stations[:, :n_obs], :matter, (30, 120), true, true, 15, 15)
+cb1 = Colorbar(f_obs[1, 2], h1, label = "record length (years)", height=Relative(85/100), width = 15, ticklabelsize = 15, labelsize = 18, valign=:top)
+
+# save(plotsdir("1d/1raw_data_nobs_all.png"), f_obs)
+```
+
+# Correlation coefficients
+
+```{julia}
+cor_logCO2 = cor_df(raw_prcp, log_CO2)
+```
+
+```{julia}
+f_width = 700
+f_height = 225
+f_cor = Figure(resolution = (f_width, f_height))
+
+width = f_width - 180
+height = f_height - 60
+h1 = point_axis(f_cor[1, 1], "", lonlims, latlims, "", width, height, states_geo, raw_stations, cor_logCO2[:, 2], :RdBu, (-0.3, 0.3), true, true, 15, 15)
+cb1 = Colorbar(f_cor[1, 2], h1, label = "kendall correlation", height=Relative(85/100), width = 15, ticklabelsize = 15, labelsize = 18, valign=:top)
+
+save(plotsdir("1d/2logCO2_cor.png"), f_cor)
 ```
 
 # MCMC results (points)
@@ -92,35 +138,39 @@ p_n_obs = map_points(raw_stations, raw_stations[:, :n_obs], "observed years", (3
 ### Pooled Stationary Model
 
 ```{julia}
-mu_rho_s_all, mu_alpha_s_all, logs_rho_s_all, logs_alpha_s_all, xi_s_all, mu_s_all, logs_s_all = read_MCMC_results_S("processed/1d_results/model_S_1M.csv", n_stations);
+mu_rho_s_all, mu_alpha_s_all, logs_rho_s_all, logs_alpha_s_all, xi_s_all, mu_s_all, logs_s_all = read_MCMC_results_S("processed/1d_results/model_S_all_10Kruns.csv", n_stations);
 ```
 
 ### Nonpooled Nonstationary Model
 
 ```{julia}
-mu0_N_all, logs0_N_all, xi_N_all, mu_beta_N_all, logs_beta_N_all = read_MCMC_results_N("processed/1d_results/model_N_1M.csv", n_stations);
+mu0_N_all, logs0_N_all, xi_N_all, mu_beta_N_all, logs_beta_N_all = read_MCMC_results_N("processed/1d_results/model_N_all_10Kruns.csv", n_stations);
 ```
 
 ### Spatially Varying Covariate Model
 
 ```{julia}
-mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_all_4rho_1Mruns.csv", n_stations);
+mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_all_10Kruns.csv", n_stations);
 ```
 
 ## validation: Quantiles (simulated stations and years)
 
+This plots the quantile plots for using all data with the full model
+
 ```{julia}
 # for using all data
-# non_missing_count = [count(!ismissing, col) for col in eachcol(raw_prcp)]
-# total_records = sum(non_missing_count)
-# k = sim_quantiles(raw_prcp, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2, total_records, n_sim)
-quantile_all_singlePlot = Plots.histogram(vec(k), bins = 30, legend = false, xlabel = "quantile", ylabel = "frequency", normalize = :pdf, fill = true, color = :grey, fillalpha = 0.6, title = "")
+non_missing_count = [count(!ismissing, col) for col in eachcol(raw_prcp)]
+total_records = sum(non_missing_count)
+k = sim_quantiles(raw_prcp, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2, total_records, n_sim)
+quantile_all_singlePlot = Plots.histogram(vec(k), bins = 30, legend = false, xlabel = "posterior probability of observations", ylabel = "normalized frequency", normalize = :pdf, fill = true, color = :grey, fillalpha = 0.6, title = "")
 hline!([1], color = :blue, linewidth = 3, xlabelfontsize = 10, ylabelfontsize = 10)
 annotate!([0.95], [0.95], Plots.text("ideal", :right, 10, :blue))
-save(plotsdir("1d/quantiles_all_singlePlot.png"), quantile_all_singlePlot)
+# save(plotsdir("1d/3quantiles_all_singlePlot.png"), quantile_all_singlePlot)
 ```
 
 ## trends in points (Full Model)
+
+Maps of estimates in 1940, 2022 and percentage difference
 
 ```{julia}
 # Spatially Varying Covariate Model
@@ -134,19 +184,43 @@ mean_stations_100_all_2022, std_stations_100_all_2022 = rl_estimate_full(raw_sta
 ```
 
 ```{julia}
-trend_df = [mean_stations_10_all_2022, mean_stations_50_all_2022, mean_stations_100_all_2022, mean_stations_10_all_1940, mean_stations_50_all_1940, mean_stations_100_all_1940, (mean_stations_10_all_2022 .- mean_stations_10_all_1940) ./ mean_stations_10_all_1940 .* 100, (mean_stations_50_all_2022 .- mean_stations_50_all_1940) ./ mean_stations_50_all_1940 .* 100, (mean_stations_100_all_2022 .- mean_stations_100_all_1940) ./ mean_stations_100_all_1940 .* 100]
+trend_df = [mean_stations_10_all_2022, mean_stations_100_all_2022, mean_stations_10_all_1940, mean_stations_100_all_1940, (mean_stations_10_all_2022 .- mean_stations_10_all_1940) ./ mean_stations_10_all_1940 .* 100, (mean_stations_100_all_2022 .- mean_stations_100_all_1940) ./ mean_stations_100_all_1940 .* 100]
 
-rows = [1, 1, 1, 2, 2, 2, 3, 3, 3]
-cols = [1, 2, 3, 1, 2, 3, 1, 2, 3]
-res = (2000, 700)
-row_hs = [400, 375, 375]
-row_names = ["2022", "", "", "1940", "", "", "(2022-1940)/2022", "", ""]
-title_names = ["10 year", "50 year", "100 year", "", "", "", "", "", ""]
-bar_names = ["", "", "inches/d", "", "", "inches/d", "", "", "%"]
-ranges = [(5, 16), (5, 16), (5, 16), (5, 16), (5, 16), (5, 16), (10, 35), (10, 35), (10, 35)]
-colors = [:roma25, :roma25, :roma25, :roma25, :roma25, :roma25, :BuPu, :BuPu, :BuPu]
-p_trend_points = map_points_subplots(raw_stations, trend_df, colors, rows, cols, row_names, res, row_hs, title_names, ranges; diff_coord = false, bar_all = false, diff_colscheme = true, bar_name = bar_names)
-# save(plotsdir("1d/p_trend_points.png"), p_trend_points)
+range_rl = (5, 15.5)
+range_change = (10, 35)
+color_rl = :roma25
+color_change = :BuPu
+f_width = 1400
+f_height = 675
+
+f_trends = Figure(resolution = (f_width, f_height), fontsize=25)
+
+ga = f_trends[1, 1] = GridLayout()
+gb = f_trends[2, 1] = GridLayout()
+
+width = f_width/2-150
+height = f_height/3-60
+xticks_size = 20
+yticks_size = 20
+
+h1 = point_axis1(ga[1, 1], "10 year", "2022", trend_df[1], color_rl, range_rl, false, true)
+point_axis1(ga[1, 2], "100 year", "", trend_df[2], color_rl, range_rl, false, false)
+
+point_axis1(ga[2, 1], "", "1940", trend_df[3], color_rl, range_rl, false, true)
+point_axis1(ga[2, 2], "", "", trend_df[4], color_rl, range_rl, false, false)
+
+cb1 = Colorbar(f_trends[1, 2], h1, label = "inches", height=Relative(89/100), width = 15, ticklabelsize = 20, valign=:bottom)
+
+h2 = point_axis1(gb[1, 1], "", "Difference", trend_df[5], color_change, range_change, true, true)
+point_axis1(gb[1, 2], "", "", trend_df[6], color_change, range_change, true, false)
+
+cb2 = Colorbar(f_trends[2, 2], h2, label = "%", height=Relative(82/100), width = 15, ticklabelsize = 20, valign=:top)
+
+rowsize!(f_trends.layout, 1, Relative(199/300))
+colsize!(f_trends.layout, 1, Relative(1))
+resize_to_layout!(f_trends)
+# f_trends
+save(plotsdir("1d/7p_trend_points.png"), f_trends)
 ```
 
 ## model comparison
@@ -160,53 +234,79 @@ logσ_beta_mean = mean.(eachcol(logσ_beta_all))
 logσ_beta_N_mean = mean.(eachcol(logs_beta_N_all))
 coefficients_results = [μ_beta_N_mean, μ_beta_mean, logσ_beta_N_mean, logσ_beta_mean]
 
-rows = [1, 1, 2, 2]
-cols = [1, 3, 1, 3]
-res = (1500, 500)
-row_hs = [900, 900]
-col_names = [" ", " ", " ", " "]
-row_names = ["location", "", "scale", ""]
-title_names = ["Nonpooled Nonstationary Model", "Spatially Varying Covariate Model", "", ""]
-ranges = [(-1, 1) .* maximum(abs.([maximum(μ_beta_N_mean), minimum(μ_beta_N_mean)])), (minimum(μ_beta_mean), maximum(μ_beta_mean)), (-1, 1) .* maximum(abs.([maximum(logσ_beta_N_mean), minimum(logσ_beta_N_mean)])), (minimum(logσ_beta_mean), maximum(logσ_beta_mean))]
+f_width = 1400
+f_height = 450
+f_coef = Figure(resolution = (f_width, f_height), fontsize=25)
+width = f_width/2-150
+height = f_height/2-60
+xticks_size = 20
+yticks_size = 20
 
-p_coefficients = map_points_subplots(raw_stations, coefficients_results, [:PuOr, :BuPu, :PuOr, :BuPu], rows, cols, row_names, res, row_hs, title_names, ranges; diff_coord = false, bar_all = true, diff_colscheme = true)
+h1 = point_axis(f_coef[1, 1], "Nonpooled Nonstationary Model", lonlims, latlims, "location", width, height, states_geo, raw_stations, μ_beta_N_mean, :PuOr, (-4, 4), false, true, xticks_size, yticks_size)
+h2 = point_axis(f_coef[1, 2], "Spatially Varying Covariate Model", lonlims, latlims, "", width, height, states_geo, raw_stations, μ_beta_mean, :PuOr, (-4, 4), false, false, xticks_size, yticks_size)
+cb2 = Colorbar(f_coef[1, 3], h2, label = "", height=Relative(82/100), width = 15, ticklabelsize = 20, valign=:bottom)
 
-# save(plotsdir("1d/p_coefficients.png"), p_coefficients)
+h3 = point_axis(f_coef[2, 1], "", lonlims, latlims, "scale", width, height, states_geo, raw_stations, logσ_beta_N_mean, :PuOr, (-1.5, 1.5), true, true, xticks_size, yticks_size)
+h4 = point_axis(f_coef[2, 2], "", lonlims, latlims, "", width, height, states_geo, raw_stations, logσ_beta_mean, :PuOr, (-1.5, 1.5), true, false, xticks_size, yticks_size)
+cb4 = Colorbar(f_coef[2, 3], h4, label = "", height=Relative(82/100), width = 15, ticklabelsize = 20, valign=:top)
+
+# f_coef
+# save(plotsdir("1d/6p_coefficients.png"), f_coef)
 ```
 
 ### point return level estimates
 
 ```{julia}
-mean_stations_full = [rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022, p)[1] for p in [0.9, 0.98, 0.99]]
-std_stations_full = [rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022, p)[2] for p in [0.9, 0.98, 0.99]]
+mean_stations_full = [rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022, p)[1] for p in [0.9, 0.99]]
+std_stations_full = [rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022, p)[2] for p in [0.9, 0.99]]
 
-mean_stations_S = [rl_etimate_S(raw_stations, mu_s_all, logs_s_all, xi_s_all, p)[1] for p in [0.9, 0.98, 0.99]]
-std_stations_S = [rl_etimate_S(raw_stations, mu_s_all, logs_s_all, xi_s_all, p)[2] for p in [0.9, 0.98, 0.99]]
+mean_stations_S = [rl_etimate_S(raw_stations, mu_s_all, logs_s_all, xi_s_all, p)[1] for p in [0.9, 0.99]]
+std_stations_S = [rl_etimate_S(raw_stations, mu_s_all, logs_s_all, xi_s_all, p)[2] for p in [0.9, 0.99]]
 
-mean_stations_N = [rl_estimate_N(raw_stations, mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022, p)[1] for p in [0.9, 0.98, 0.99]]
-std_stations_N = [rl_estimate_N(raw_stations, mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022, p)[2] for p in [0.9, 0.98, 0.99]]
+mean_stations_N = [rl_estimate_N(raw_stations, mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022, p)[1] for p in [0.9, 0.99]]
+std_stations_N = [rl_estimate_N(raw_stations, mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022, p)[2] for p in [0.9, 0.99]]
 
 rl_results_mean = vcat(mean_stations_S, mean_stations_N, mean_stations_full)
 rl_results_std = vcat(std_stations_S, std_stations_N, std_stations_full)
+```
 
-rows = [1, 2, 3, 1, 2, 3, 1, 2, 3]
-cols = [1, 1, 1, 2, 2, 2, 3, 3, 3]
-res = (2000, 700)
-row_hs = [400, 375, 375]
-row_names = ["10 year", "50 year", "100 year", "", "", "", "", "", ""]
-title_names = ["Pooled Stationary Model", "", "", "Nonpooled Nonstationary Model", "", "", "Spatially Varying Covariate Model", "", ""]
+```{julia}
+range_rl = (6, 16.5)
+range_unc = (0, 3)
+color_rl = :roma25
+color_unc = :GnBu
+f_width = 1400
+f_height = 675
 
-ranges_mean = [(6, 9), (9, 13), (10, 16.5), (6, 9), (9, 13), (10, 16.5), (6, 9), (9, 13), (10, 16.5)]
+f_trends = Figure(resolution = (f_width, f_height), fontsize=25)
 
-ranges_std = [(0, 1), (0, 2), (0, 3), (0, 1), (0, 2), (0, 3), (0, 1), (0, 2), (0, 3)]
+ga = f_trends[1, 1] = GridLayout()
 
-bar_names = ["inches/d", "inches/d", "inches/d", "inches/d", "inches/d", "inches/d", "inches/d", "inches/d", "inches/d"]
-p_rl_points_mean = map_points_subplots(raw_stations, rl_results_mean, :roma25, rows, cols, row_names, res, row_hs, title_names, ranges_mean; diff_coord = false, bar_all = false, diff_colscheme = false, bar_name = bar_names)
+width = f_width/2-150
+height = f_height/3-60
+xticks_size = 20
+yticks_size = 20
+function point_axis1(ax, title_name, ylabel_name, var, colorscheme, range, with_xticks, with_yticks)
+    return point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, raw_stations, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size)
+end
 
-p_rl_points_std = map_points_subplots(raw_stations, rl_results_std, :GnBu, rows, cols, row_names, res, row_hs, title_names, ranges_std; diff_coord = false, bar_all = false, diff_colscheme = false, bar_name = bar_names)
+h1 = point_axis1(ga[1, 1], "10 year", "2022", trend_df[1], color_rl, range_rl, false, true)
+point_axis1(ga[1, 2], "100 year", "", trend_df[2], color_rl, range_rl, false, false)
 
-save(plotsdir("1d/model_comparison_rlmean.png"), p_rl_points_mean)
-save(plotsdir("1d/model_comparison_rlstd.png"), p_rl_points_std)
+point_axis1(ga[2, 1], "", "1940", trend_df[3], color_rl, range_rl, false, true)
+point_axis1(ga[2, 2], "", "", trend_df[4], color_rl, range_rl, false, false)
+
+h2 = point_axis1(gb[1, 1], "", "Difference", trend_df[5], color_change, range_change, true, true)
+point_axis1(gb[1, 2], "", "", trend_df[6], color_change, range_change, true, false)
+
+cb1 = Colorbar(f_trends[1, 2], h1, label = "inches", height=Relative(89/100), width = 15, ticklabelsize = 20, valign=:bottom)
+
+rowsize!(f_trends.layout, 1, Relative(199/300))
+colsize!(f_trends.layout, 1, Relative(1))
+resize_to_layout!(f_trends)
+
+# save(plotsdir("1d/8model_comparison_rlmean.png"), p_rl_points_mean)
+# save(plotsdir("1d/9model_comparison_rlstd.png"), p_rl_points_std)
 ```
 
 ## compare with Atlas 14
@@ -239,27 +339,37 @@ Atlas14_comparison = [
     (mean_stations_S[1] .- Atlas14_rl10_1d) ./ Atlas14_rl10_1d .* 100,
     (mean_stations_N[1] .- Atlas14_rl10_1d) ./ Atlas14_rl10_1d .* 100,
     (mean_stations_full[1] .- Atlas14_rl10_1d) ./ Atlas14_rl10_1d .* 100,
-    (mean_stations_S[2] .- Atlas14_rl50_1d) ./ Atlas14_rl50_1d .* 100,
-    (mean_stations_N[2] .- Atlas14_rl50_1d) ./ Atlas14_rl50_1d .* 100,
-    (mean_stations_full[2] .- Atlas14_rl50_1d) ./ Atlas14_rl50_1d .* 100,
-    (mean_stations_S[3] .- Atlas14_rl100_1d) ./ Atlas14_rl100_1d .* 100,
-    (mean_stations_N[3] .- Atlas14_rl100_1d) ./ Atlas14_rl100_1d .* 100,
-    (mean_stations_full[3] .- Atlas14_rl100_1d) ./ Atlas14_rl100_1d .* 100,
+    (mean_stations_S[2] .- Atlas14_rl100_1d) ./ Atlas14_rl100_1d .* 100,
+    (mean_stations_N[2] .- Atlas14_rl100_1d) ./ Atlas14_rl100_1d .* 100,
+    (mean_stations_full[2] .- Atlas14_rl100_1d) ./ Atlas14_rl100_1d .* 100
 ]
 
-rows = [1, 1, 1, 2, 2, 2, 3, 3, 3]
-cols = [1, 2, 3, 1, 2, 3, 1, 2, 3]
-res = (2000, 700)
-row_hs = [400, 375, 375]
-row_names = ["10 year", "", "", "50 year", "", "", "100 year", "", ""]
-title_names = ["Pooled Stationary Model", "Nonpooled Nonstationary Model", "Spatially Varying Covariate Model", "", "", "", "", "", ""]
+range_diff = (-30, 30)
+color_diff = :RdBu
+f_width = 1400
+f_height = 675
 
-ranges = fill((-30, 30), length(Atlas14_comparison))
+f_diff = Figure(resolution = (f_width, f_height), fontsize=25)
 
-bar_names = ["%", "%", "%", "%", "%", "%", "%", "%", "%"]
-p_Atlas14_diff = map_points_subplots(raw_stations, Atlas14_comparison, :RdBu, rows, cols, row_names, res, row_hs, title_names, ranges; diff_coord = false, bar_all = false, diff_colscheme = false, bar_name = bar_names)
+ga = f_diff[1, 1] = GridLayout()
 
-save(plotsdir("1d/Atlas14_comparison.png"), p_Atlas14_diff)
+width = f_width/2-150
+height = f_height/3-60
+xticks_size = 20
+yticks_size = 20
+
+h1 = point_axis1(ga[1, 1], "10 year", "Pooled \n Stationary", Atlas14_comparison[1], color_diff, range_diff, false, true)
+point_axis1(ga[1, 2], "100 year", "", Atlas14_comparison[4], color_diff, range_diff, false, false)
+
+point_axis1(ga[2, 1], "", "Nonpooled \n Nonstationary", Atlas14_comparison[2], color_diff, range_diff, false, true)
+point_axis1(ga[2, 2], "", "", Atlas14_comparison[5], color_diff, range_diff, false, false)
+
+h2 = point_axis1(ga[3, 1], "", "Spatially \n Varying \n Covariates", Atlas14_comparison[3], color_diff, range_diff, true, true)
+point_axis1(ga[3, 2], "", "", Atlas14_comparison[6], color_diff, range_diff, true, false)
+
+cb1 = Colorbar(f_diff[1, 2], h1, label = "%", height=Relative(87.5/100), width = 15, ticklabelsize = 20)
+
+save(plotsdir("1d/10Atlas14_comparison.png"), f_diff)
 ```
 
 ### time series of Atlas 14 comparison (full model)

@@ -31,7 +31,7 @@ Load in the functions that will allow us to get the data
 #| code-fold: true
 include(scriptsdir("params.jl")) # defines our parameters
 include(scriptsdir("get_data.jl")) # provides function to get the data
-include(scriptsdir("util.jl"))
+include(scriptsdir("cal_util.jl"))
 include(scriptsdir("plot_util.jl"));
 ```
 

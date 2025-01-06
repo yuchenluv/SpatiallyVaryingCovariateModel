@@ -35,48 +35,7 @@ function read_MCMC_results_N(file_path, n_stations)
 end
 
 # spatially varying covariate model
-# "rho", "alpha", "mu_w", "logs_w", "mu0_w", "logs0_w", "xi"
-# same rho for all spatially varying parameters
-function read_MCMC_results_full_shareRho1(file_path, n_stations)
-    nonstationary_multiGP_posterior = DataFrame(CSV.File(datadir(file_path)))
-    select!(nonstationary_multiGP_posterior, Not(:Column1))
-    rho = nonstationary_multiGP_posterior[:, 1]
-    alpha = nonstationary_multiGP_posterior[:, 2]
-    mu_w = nonstationary_multiGP_posterior[:, 3]
-    logs_w = nonstationary_multiGP_posterior[:, 4]
-    μ0_w = nonstationary_multiGP_posterior[:, 5]
-    logσ0_w = nonstationary_multiGP_posterior[:, 6]
-    xi = nonstationary_multiGP_posterior[:, 7]
-
-    μ_beta = nonstationary_multiGP_posterior[:, 8:7+n_stations]
-    logσ_beta = nonstationary_multiGP_posterior[:, 8+n_stations:7+n_stations*2]
-    μ0 = nonstationary_multiGP_posterior[:, 8+n_stations*2:7+n_stations*3]
-    logσ0 = nonstationary_multiGP_posterior[:, 8+n_stations*3:7+n_stations*4]
-    return rho, alpha, mu_w, logs_w, μ0_w, logσ0_w, xi, μ_beta, logσ_beta, μ0, logσ0
-end
-
-# same rho for mu0 and mu_beta; logs0 and logs_beta
-function read_MCMC_results_full_shareRho2(file_path, n_stations)
-    nonstationary_multiGP_posterior = DataFrame(CSV.File(datadir(file_path)))
-    select!(nonstationary_multiGP_posterior, Not(:Column1))
-    mu_rho = nonstationary_multiGP_posterior[:, 1]
-    mu_alpha = nonstationary_multiGP_posterior[:, 2]
-    logs_rho = nonstationary_multiGP_posterior[:, 3]
-    logs_alpha = nonstationary_multiGP_posterior[:, 4]
-    mu_w = nonstationary_multiGP_posterior[:, 5]
-    mu0_w = nonstationary_multiGP_posterior[:, 6]
-    logs_w = nonstationary_multiGP_posterior[:, 7]
-    logs0_w = nonstationary_multiGP_posterior[:, 8]
-    xi = nonstationary_multiGP_posterior[:, 9]
-
-    μ_beta = nonstationary_multiGP_posterior[:, 10:9+n_stations]
-    logσ_beta = nonstationary_multiGP_posterior[:, 10+n_stations:9+n_stations*2]
-    μ0 = nonstationary_multiGP_posterior[:, 10+n_stations*2:9+n_stations*3]
-    logσ0 = nonstationary_multiGP_posterior[:, 10+n_stations*3:9+n_stations*4]
-    return mu_rho, mu_alpha, logs_rho, logs_alpha, mu_w, mu0_w, logs_w, logs0_w, xi, μ_beta, logσ_beta, μ0, logσ0
-end
-
-# different rho for all spatially varying covariates
+# different rho (kernel length parameter) for all spatially varying covariates
 function read_MCMC_results_full_diffRho(file_path, n_stations)
     nonstationary_multiGP_posterior = DataFrame(CSV.File(datadir(file_path)))
     select!(nonstationary_multiGP_posterior, Not(:Column1))
@@ -95,6 +54,25 @@ function read_MCMC_results_full_diffRho(file_path, n_stations)
     μ0 = nonstationary_multiGP_posterior[:, 10+n_stations*2:9+n_stations*3]
     logσ0 = nonstationary_multiGP_posterior[:, 10+n_stations*3:9+n_stations*4]
     return mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi, μ_beta, logσ_beta, μ0, logσ0
+end
+
+
+"""functions to calculate correlation coefficients"""
+
+function kendall_cor(idx, dataset, x_dataset)
+    y = dataset[completecases(DataFrame(id=dataset[:, idx])), :]
+    X = x_dataset[1:(length(x_dataset)-1)][completecases(DataFrame(id=dataset[:, idx])), :]
+    # y = ustrip.(u"mm", y[:, idx])
+    y = y[:, idx]
+    y = y ./ 25.4
+    cor = StatsBase.corkendall(X, y)
+    return cor
+end
+
+function cor_df(dataset_obs, x_dataset)
+    cor = [kendall_cor(idx, dataset_obs, x_dataset)[1] for idx in names(dataset_obs)]
+    cor = DataFrame(stnid=names(dataset_obs), name=cor)
+    return cor
 end
 
 
@@ -188,7 +166,7 @@ function rl_etimate_S(point_df, mu, logs, xi, p)
 end
 
 
-"""Functions for quantile plots"""
+"""Functions for quantile plots for the full model"""
 
 # get the simulated distribution for the full model
 function get_gev(x, μ0, μ_beta, logσ0, logσ_beta, ξ)
@@ -244,50 +222,181 @@ function GP_dist(mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, log
 end
 
 
-"""web scrape Atlas 14 estimates"""
+"""Validation metrics"""
 
-# Function to extract and parse the quantiles from the fetched data
-function parse_quantiles_from_url(url)
-    # Fetching data from the URL
-    response = HTTP.get(url, require_ssl_verification=false)
-    data = String(response.body)
+# LogS
 
-    # Extracting the quantiles data
-    start_idx = findfirst("quantiles = ", data)
-    end_idx = findnext(";", start_idx) - 1
-    quantiles_str = data[start_idx:end_idx]
-
-    # Cleaning up the quantiles string for JSON parsing
-    quantiles_str = replace(quantiles_str, "quantiles = " => "")
-    quantiles_str = replace(quantiles_str, "'" => "\"")
-
-    # Parsing the JSON string to a Julia array
-    quantiles_array = JSON.parse(quantiles_str)
-
-    # Converting the string values to floats
-    quantiles_floats = map(x -> parse(Float64, x), quantiles_array)
-
-    return quantiles_floats
+# for stationary model
+function logs_S(mu, logs, xi, obs_d)
+    total_logs = 0.0
+    for y in 1:size(obs_d)[1]
+        for s in 1:size(obs_d)[2]
+            if !ismissing(obs_d[y, s])
+                # posterior probabilities for one observation given all MCMC posterior distributions
+                pdf_yi = pdf.(GeneralizedExtremeValue.(mu[:, s], exp.(logs[:, s]), xi), obs_d[y, s])
+                # negative log of the average among all MCMC posterior distributions
+                logpdf_yi = -log(mean(pdf_yi))
+                # sum up the negative log
+                total_logs = total_logs + logpdf_yi
+            end
+        end
+    end
+    # average_logs = total_logs / (sum(!ismissing(x) for x in eachcol(obs_d) for x in x) * length(xi))
+    return total_logs
 end
 
-function get_Atlas14(lat, lon, row, col)
-    # row is linked with durations
-    url = "https://hdsc.nws.noaa.gov/cgi-bin/hdsc/new/cgi_readH5.py?lat=" * lat * "&lon=" * lon * "&type=pf&data=depth&units=english&series=pds"
-    a = DataFrame(CSV.File(download(url)))[1, 1]
-    a = a[15:length(a)-2]
-    a = replace(a, "'" => "")
-    b = split(a, "], [")
-    c1 = [parse(Float64, s) for s in split(b[row], ", ")][col]
-    return c1
+# For nonstationary framework (Nonpooled Nonstationary & full model)
+function logs_N(mu_beta, logs_beta, mu0, logs0, xi, CO2, obs_d, model_N)
+    total_logs = 0.0
+    for y in 1:size(obs_d)[1]
+        for s in 1:size(obs_d)[2]
+            if !ismissing(obs_d[y, s])
+                mu = mu0[:, s] .+ CO2[y] .* mu_beta[:, s]
+                sigma = exp.(logs0[:, s] .+ CO2[y] .* logs_beta[:, s])
+                if model_N == "nonpooled"
+                    xi_s = xi[:, s]
+                else 
+                    xi_s = xi
+                end
+
+                # posterior probabilities for one observation given all MCMC posterior distributions
+                pdf_yi = pdf.(GeneralizedExtremeValue.(mu, sigma, xi_s), obs_d[y, s])
+                # negative log of the average among all MCMC posterior distributions
+                logpdf_yi = -log(mean(pdf_yi))
+                # sum up the negative log
+                total_logs = total_logs + logpdf_yi
+            end
+        end
+    end
+    return total_logs
 end
 
-function get_Atlas14_IDF(lat, lon)
-    url = "https://hdsc.nws.noaa.gov/cgi-bin/hdsc/new/cgi_readH5.py?lat=" * lat * "&lon=" * lon * "&type=pf&data=depth&units=english&series=pds"
-    a = DataFrame(CSV.File(download(url)))[1, 1]
-    a = a[15:length(a)-2]
-    a = replace(a, "'" => "")
-    b = split(a, "], [")
-    rls = [[parse(Float64, s) for s in split(b[10], ", ")][i] for i in [1, 2, 3, 4, 5, 6, 7, 8, 9]]
-    return rls
+
+# Quantile score
+
+# mean for all simulations of one year and one station
+function calculate_quantile_score0(obs, est_p, p)
+    qs = zeros(Float64, length(est_p))
+    for i in 1:length(est_p)
+        if obs - est_p[i] > 0
+            qs[i] = p * (obs - est_p[i])
+        else
+            qs[i] = (p - 1) * (obs - est_p[i])
+        end
+    end
+    return mean(qs)
 end
 
+# for the stationary model
+function calculate_quantile_score_S(obs, p, mu_s, logs_s, xi_s)
+    # p is non-exceedance probability
+    qs = Array{Union{Float64,Missing}}(zeros(size(obs)[1], size(obs)[2]))
+    for t in 1:size(obs)[1]
+        for s in 1:size(obs)[2]
+            if ismissing(obs[t, s]) || obs[t, s] < 0
+                qs[t, s] = missing
+            else
+                rl_p_yi = quantile.(GeneralizedExtremeValue.(mu_s[:, s], exp.(logs_s[:, s]), xi_s), p)
+                qs[t, s] = calculate_quantile_score0(obs[t, s], rl_p_yi, p)
+            end
+        end
+    end
+    return sum(skipmissing(qs))
+end
+
+# for the nonstationary model
+function calculate_quantile_score_N(obs, p, mu_beta, logs_beta, mu0, logs0, xi, CO2, model_N)
+    # p is non-exceedance probability
+    qs = Array{Union{Float64,Missing}}(zeros(size(obs)[1], size(obs)[2]))
+    for t in 1:size(obs)[1]
+        for s in 1:size(obs)[2]
+            if ismissing(obs[t, s]) || obs[t, s] < 0
+                qs[t, s] = missing
+            else
+                mu = mu0[:, s] .+ CO2[t] .* mu_beta[:, s]
+                sigma = exp.(logs0[:, s] .+ CO2[t] .* logs_beta[:, s])
+                if model_N == "nonpooled"
+                    xi_s = xi[:, s]
+                else 
+                    xi_s = xi
+                end
+
+                rl_p_yi = quantile.(GeneralizedExtremeValue.(mu, sigma, xi_s), p)
+                qs[t, s] = calculate_quantile_score0(obs[t, s], rl_p_yi, p)
+            end
+        end
+    end
+    return sum(skipmissing(qs))
+end
+
+# CRPS
+
+# to calculate for one observation
+using QuadGK  # A Julia package for numerical integration
+
+function heaviside(y, observation)
+    return y >= observation ? 1.0 : 0.0
+end
+
+function crps(observation, forecast_cdf)
+    integrand(y) = (forecast_cdf(y) - heaviside(y, observation))^2
+    result, _ = quadgk(integrand, obs_min, obs_max)
+    return result
+end
+
+# for the stationary model
+function cdf_S(μ, σ, ξ)
+    function cdf_gev(y)
+        return cdf(GeneralizedExtremeValue(μ, σ, ξ), y)
+    end
+    return cdf_gev
+end
+
+function crps_S(mu, logs, xi, obs_d)
+    total_crps = 0.0
+    for y in 1:size(obs_d)[1]
+        print(y)
+        print("  ")
+        for s in 1:size(obs_d)[2]
+            if !ismissing(obs_d[y, s])
+                GEV_cdf_s = cdf_S.(mu[:, s], exp.(logs[:, s]), xi)
+                crps_value = crps.(obs_d[y, s], GEV_cdf_s)
+                total_crps += mean(crps_value)
+            end
+        end
+    end
+    return total_crps
+end
+
+# for nonstationary models (Full Model and Nonpooled Nonstationary Model)
+
+function cdf_N(μ_beta, logσ_beta, μ0, logσ0, ξ, x)
+    μ = μ0 + x * μ_beta
+    σ = exp(logσ0 + x * logσ_beta)
+    function cdf_gev(y)
+        return cdf(GeneralizedExtremeValue(μ, σ, ξ), y)
+    end
+    return cdf_gev
+end
+
+function crps_N(mu_beta, logs_beta, mu0, logs0, xi, CO2, obs_d, model_N)
+    total_crps = 0.0
+    for y in 1:size(obs_d)[1]
+        print(y)
+        print("  ")
+        for s in 1:size(obs_d)[2]
+            if !ismissing(obs_d[y, s])
+                if model_N == "nonpooled"
+                    xi_s = xi[:, s]
+                else 
+                    xi_s = xi
+                end
+
+                GEV_cdf_y = cdf_N.(mu_beta[:, s], logs_beta[:, s], mu0[:, s], logs0[:, s], xi_s, CO2[y])
+                crps_value = crps.(obs_d[y, s], GEV_cdf_y)
+                total_crps += mean(crps_value)
+            end
+        end
+    end
+    return total_crps
+end

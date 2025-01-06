@@ -4,99 +4,65 @@ Common functions for plotting
 
 """Functions for maps"""
 
-# Function for single scatter plots
-function map_points(point_df, var_mean, label_name, range, colorscheme, title_name, res)
-    # point_df: stations with coordinates
-    # var_mean: values to be mapped
-    # res: resolution of the plot
-    states = download(
-        "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
-    )
-    states_geo = GeoJSON.read(read(states, String))
+# function for plotting single axes that can be used for
+# main references
+# https://docs.makie.org/v0.21/tutorials/layout-tutorial
+# https://docs.makie.org/dev/reference/blocks/gridlayout
 
-    Δ = 0.25
-    lonlims = (minimum(point_df[!, :lon]) - Δ, maximum(point_df[!, :lon]) + Δ)
-    latlims = (minimum(point_df[!, :lat]) - Δ, maximum(point_df[!, :lat]) + Δ)
-
-    f = Figure(resolution=res, fontsize=22)
-    ax = GeoAxis(
-        f[1, 1];
-        dest="+proj=eqc",
-        title=title_name,
-        lonlims=lonlims,
-        latlims=latlims
-    )
-
-    poly!(ax, states_geo; color=:white, strokewidth=1)
-
-    h1 = CairoMakie.scatter!(ax, point_df[!, :lon], point_df[!, :lat]; color=var_mean, colormap=colorscheme, colorrange=range, markersize=20, strokewidth=0, strokecolor=:grey17)
-
-    Colorbar(f[1, 2], h1, label=label_name)
-    poly!(ax, states_geo, edgecolor=:gray, strokewidth=1, color=:transparent)
-    return f
-end
-
-
-# Function for subplots of mapped points
-function map_points_subplots(points_df, all_data, colorschemes, rows, cols, row_names, res, row_hs, title_names, ranges; diff_coord=false, bar_all=true, diff_colscheme=false, bar_name=false)
-    # bar_all: if would need color bar for all subplots
-    # diff_colscheme: if different color schemes for the color bars
-    # point_df: stations with coordinates
-    # all_data: a vector with all the plotting vectors
-    # diff_coord: if plotting for the same points
-    # states = download(
-    #     "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
-    # )
-
-    # using local states file
-    file_path = datadir("raw/us-states.json")
-    states_geo = GeoJSON.read(read(file_path, String))
-
-    Δ = 0.25
-
-    f = Figure(resolution=res, fontsize=22, layout=GridLayout(row_heights=row_hs))
-
-    point_df = points_df
-    colorscheme = colorschemes
-
-    for i in 1:length(all_data)
-        if diff_colscheme == true
-            colorscheme = colorschemes[i]
-        end
-        if diff_coord == true
-            point_df = points_df[i]
-        end
-        lonlims = (minimum(point_df[!, :lon]) - Δ, maximum(point_df[!, :lon]) + Δ)
-        latlims = (minimum(point_df[!, :lat]) - Δ, maximum(point_df[!, :lat]) + Δ)
-        ax = GeoAxis(
-            f[rows[i], cols[i]];
+function point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, point_df, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size)
+    ax1a = GeoAxis(
+            ax;
             dest="+proj=eqc",
-            title=title_names[i],
+            title=title_name,
             lonlims=lonlims,
-            latlims=latlims,
-            ylabel=row_names[i]
-        )
-        poly!(ax, states_geo; color=:white, strokewidth=1)
-        h1 = CairoMakie.scatter!(ax, point_df[!, :lon], point_df[!, :lat]; color=all_data[i], colormap=colorscheme, colorrange=ranges[i], markersize=15, strokewidth=0, strokecolor=:grey17)
-
-        if bar_name == false
-            b_name = ""
-        else
-            b_name = bar_name[i]
-        end
-
-        if bar_all == true
-            Colorbar(f[rows[i], cols[i]+1], h1, label=b_name, height=Relative(0.9))
-        else
-            if cols[i] == maximum(cols)
-                Colorbar(f[rows[i], cols[i]+1], h1, label=b_name, height=Relative(0.9))
-            end
-        end
-
-        poly!(ax, states_geo, edgecolor=:gray, strokewidth=1, color=:transparent)
+            latlims=latlims, 
+            ylabel = ylabel_name,
+            yticks = [29, 30, 31],
+            width = width,
+            height = height,
+            xticklabelsize = xticks_size,
+            yticklabelsize = yticks_size,
+            ylabelfont=:bold,
+    )
+    poly!(ax1a, states_geo; color=:white, strokewidth=1)
+    h1 = CairoMakie.scatter!(ax1a, point_df[!, :lon], point_df[!, :lat]; color=var, colormap=colorscheme, colorrange=range, markersize=20, strokewidth=0, strokecolor=:grey17)
+    if with_xticks == false
+        hidexdecorations!(ax1a, grid = false)
     end
-    return f
+    if with_yticks == false
+        hideydecorations!(ax1a, grid = false)
+    end
+    return h1
 end
+
+# when need to plot two variables
+function point_axis_2(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, point_df, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size, var2, point_df2)
+    ax1a = GeoAxis(
+            ax;
+            dest="+proj=eqc",
+            title=title_name,
+            lonlims=lonlims,
+            latlims=latlims, 
+            ylabel = ylabel_name,
+            yticks = [29, 30, 31],
+            width = width,
+            height = height,
+            xticklabelsize = xticks_size,
+            yticklabelsize = yticks_size,
+            ylabelfont=:bold,
+    )
+    poly!(ax1a, states_geo; color=:white, strokewidth=1)
+    h1 = CairoMakie.scatter!(ax1a, point_df[!, :lon], point_df[!, :lat]; color=var, colormap=colorscheme, colorrange=range, markersize=20, strokewidth=0)
+    CairoMakie.scatter!(ax1a, point_df2[!, :lon], point_df2[!, :lat]; color=var2, colormap=colorscheme, colorrange=range, markersize=20, strokewidth=2, strokecolor=:red)
+    if with_xticks == false
+        hidexdecorations!(ax1a, grid = false)
+    end
+    if with_yticks == false
+        hideydecorations!(ax1a, grid = false)
+    end
+    return h1
+end
+
 
 """plot time series of return level estimates"""
 
@@ -320,7 +286,7 @@ function map_grids_subplots(
     )
     states_geo = GeoJSON.read(read(states, String))
 
-    f = Figure(resolution = res, fontsize = 22, layout = GridLayout(row_heights = row_hs))
+    f = Figure(resolution = res, fontsize = 20, layout = GridLayout(row_heights = row_hs))
 
     Δ = 0.25
     lonlims = (minimum(point_df[!, :lon]) - Δ, maximum(point_df[!, :lon]) + Δ)

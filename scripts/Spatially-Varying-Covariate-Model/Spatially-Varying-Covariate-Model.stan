@@ -57,6 +57,7 @@ parameters{
 
 model{
   // gp_exponential_cov from https://mc-stan.org/math/group__opencl_gac47f7d0f97a1035236ac74de3b965020.html
+  // https://mc-stan.org/docs/functions-reference/matrix_operations.html
   matrix[n_station, n_station] mu_K_xi; // kernel for mu_beta
   matrix[n_station, n_station] mu_K = gp_exponential_cov(X, mu_alpha, mu_rho);
   

@@ -152,15 +152,14 @@ lats_i = lats
 X_i = X
 
 # to exclude some years
-# prcp_i[112:122, ] = -99/25.4
-# years_index_all = min(year_prcp):max(year_prcp)
-# year1 = years_index_all[seq(1, length(years_index_all), by = 2)]
-# year2 = years_index_all[seq(2, length(years_index_all), by = 2)]
 years = data[,1]
 year1_indices = seq(1, length(years), by = 2)
 year2_indices = seq(2, length(years), by = 2)
 prcp_i[year2_indices, ] = -99/25.4 # year1, odd years
+# prcp_i[year1_indices, ] = -99/25.4 # year2, even years
 ```
+
+Run simulations
 
 ```{r}
 model_full = stan_model("Spatially-Varying-Covariate-Model.stan")
@@ -174,6 +173,8 @@ init_list_model_full = as.list(model_full_MAP$par)
 model_full_MCMC = MCMC_fit(model_full, data_full, init_list_model_full)
 ```
 
+Save the results
+
 ```{r}
 file_path = "../../data/processed/1d_results/model_full_allt1_1Mruns.Rds"
 saveRDS(model_full_MCMC, file_path)
@@ -183,9 +184,11 @@ model_full_MCMC
 Load previous results (if MCMC was done before)
 
 ```{r}
-Model_full_MCMC = readRDS("../../data/processed/1d_results/model_full_all_4rho_1Mruns.Rds") # all stations
-# Model_full_MCMC
-# mcmc_trace(Model_full_MCMC, pars = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu0_rho", "mu0_alpha", "logs0_rho", "logs0_alpha"))
+# file names: model_full_all_10Kruns, model_full_all_y1_10Kruns, model_full_allS1_10Kruns
+Model_full_MCMC = readRDS("../../data/processed/1d_results/model_full_all_50Kruns.Rds") # all stations
+Model_full_MCMC
+mcmc_trace(Model_full_MCMC, pars = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu0_rho", "mu0_alpha", "logs0_rho", "logs0_alpha", "xi"))
+# mcmc_trace(Model_full_MCMC, pars = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha"))
 ```
 
 Export MCMC results to be plotted in Julia
@@ -198,9 +201,10 @@ extract_MCMC <- function(MCMC_posterior_all, variable, station_i){
 
 ```{r}
 variables_full = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu0_rho", "mu0_alpha", "logs0_rho", "logs0_alpha", "xi")
-# variables_full = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu_w", "mu0_w", "logs_w", "logs0_w", "xi")
-file_path_MCMC = "../../data/processed/1d_results/model_full_grids5t1_1Mruns.Rds"
+# change the file name
+file_path_MCMC = "../../data/processed/1d_results/model_full_allS5_10Kruns.Rds"
 model_full_MCMC_i = readRDS(file_path_MCMC)
+# change the station name
 n_s = dim(stations5)[1] # n_station
 model_full_posterior = matrix(0, nrow = 20000, nc = 9+n_s*4)
 
@@ -221,6 +225,6 @@ for (s in 1:n_s){
 }
 
 model_full_posterior = as.data.frame(model_full_posterior)
-file_path = "../../data/processed/1d_results/model_full_grids5t1_1Mruns.csv"
+file_path = "../../data/processed/1d_results/model_full_allS5_10Kruns.csv"
 write.csv(model_full_posterior, file_path)
 ```

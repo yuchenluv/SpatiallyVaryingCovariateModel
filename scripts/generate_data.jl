@@ -1,14 +1,8 @@
----
-title: "Generate input data"
-jupyter: julia-1.9
-execute:
-  cache: true
----
-
+"""
+Generate input data
 This script gets the GHCN-d AMS and covariate (CO2) data as input to the stan models
+"""
 
-```{julia}
-#| code-fold: true
 using CategoricalArrays: categorical
 using CSV
 using DataFrames
@@ -18,30 +12,22 @@ using DrWatson
 using GHCNData
 using HTTP
 using ProgressMeter
-using StatsBase;
-```
+using StatsBase
 
-```{julia}
-#| code-fold: true
 include(scriptsdir("params.jl")) # defines the parameters
-include(scriptsdir("get_data.jl")); # functions to get the data
-```
+include(scriptsdir("get_data.jl")) # functions to get the data
 
-```{julia}
 all_stations = get_station_inventory(PARAMS)
 annmax_precip = get_annmax_precip(PARAMS)
 CO2 = get_CO2(PARAMS)
 dataset = innerjoin(annmax_precip, CO2, on=:year)
 lnCO2 = dataset[!, [:year, :log_CO2]]
 dataset[!, :log_CO2] = dataset[!, :log_CO2] .- mean(dataset[!, :log_CO2])
-```
 
-Save data to csv so can be used in r
+# Save data to csv so can be used in r
 
-```{julia}
-# CSV.write(datadir("processed/raw_1d/GHCN_daily_30y.csv"), dataset)
-# stations_valid = names(annmax_precip)[2:end]
-# stations_inventory_valid = all_stations[in(stations_valid).(all_stations.stnid), :]
-# CSV.write(datadir("processed/raw_1d/GHCN_stations_30y.csv"), stations_inventory_valid)
+CSV.write(datadir("processed/raw_1d/GHCN_daily_30y.csv"), dataset)
+stations_valid = names(annmax_precip)[2:end]
+stations_inventory_valid = all_stations[in(stations_valid).(all_stations.stnid), :]
+CSV.write(datadir("processed/raw_1d/GHCN_stations_30y.csv"), stations_inventory_valid)
 CSV.write(datadir("processed/raw_1d/lnCO2.csv"), lnCO2)
-```

@@ -31,7 +31,7 @@ load commonly used functions
 #| code-fold: true
 include(scriptsdir("params.jl")) # defines our parameters
 include(scriptsdir("get_data.jl")) # provides function to get the data
-include(scriptsdir("util.jl"))
+include(scriptsdir("cal_util.jl"))
 include(scriptsdir("plot_util.jl"));
 ```
 
@@ -107,40 +107,21 @@ p_n_obs_subs = map_points_subplots(coords_subsets, obs_dfs, :matter, rows, cols,
 ## Read in MCMC results
 
 ```{julia}
-mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_all_4rho_1Mruns.csv", n_stations)
-
-# using different parameter settings
-# rho_all, alpha_all, mu_w_all, logs_w_all, μ0_w_all, logσ0_w_all, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_shareRho1("processed/1d_results/model_full_posterior_all_1rho.csv", n_stations)
-
-# mu_rho, mu_alpha, logs_rho, logs_alpha, mu_w, mu0_w, logs_w, logs0_w, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_shareRho2("processed/1d_results/model_full_posterior_all_2rho.csv", n_stations)
+mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_all_10Kruns.csv", n_stations);
 ```
 
 Cross-validation of different station subsets
 
 ```{julia}
-mu_rho_sub1, mu_alpha_sub1, logs_rho_sub1, logs_alpha_sub1, mu0_rho_sub1, mu0_alpha_sub1, logs0_rho_sub1, logs0_alpha_sub1, xi_sub1, μ_beta_sub1, logσ_beta_sub1, μ0_sub1, logσ0_sub1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids1_1Mruns.csv", length(sub1_index))
+mu_rho_sub1, mu_alpha_sub1, logs_rho_sub1, logs_alpha_sub1, mu0_rho_sub1, mu0_alpha_sub1, logs0_rho_sub1, logs0_alpha_sub1, xi_sub1, μ_beta_sub1, logσ_beta_sub1, μ0_sub1, logσ0_sub1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_allS1_10Kruns.csv", length(sub1_index))
 
-mu_rho_sub2, mu_alpha_sub2, logs_rho_sub2, logs_alpha_sub2, mu0_rho_sub2, mu0_alpha_sub2, logs0_rho_sub2, logs0_alpha_sub2, xi_sub2, μ_beta_sub2, logσ_beta_sub2, μ0_sub2, logσ0_sub2 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids2_1Mruns.csv", length(sub2_index))
+mu_rho_sub2, mu_alpha_sub2, logs_rho_sub2, logs_alpha_sub2, mu0_rho_sub2, mu0_alpha_sub2, logs0_rho_sub2, logs0_alpha_sub2, xi_sub2, μ_beta_sub2, logσ_beta_sub2, μ0_sub2, logσ0_sub2 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_allS2_10Kruns.csv", length(sub2_index))
 
-mu_rho_sub3, mu_alpha_sub3, logs_rho_sub3, logs_alpha_sub3, mu0_rho_sub3, mu0_alpha_sub3, logs0_rho_sub3, logs0_alpha_sub3, xi_sub3, μ_beta_sub3, logσ_beta_sub3, μ0_sub3, logσ0_sub3 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids3_1Mruns.csv", length(sub3_index))
+mu_rho_sub3, mu_alpha_sub3, logs_rho_sub3, logs_alpha_sub3, mu0_rho_sub3, mu0_alpha_sub3, logs0_rho_sub3, logs0_alpha_sub3, xi_sub3, μ_beta_sub3, logσ_beta_sub3, μ0_sub3, logσ0_sub3 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_allS3_10Kruns.csv", length(sub3_index))
 
-mu_rho_sub4, mu_alpha_sub4, logs_rho_sub4, logs_alpha_sub4, mu0_rho_sub4, mu0_alpha_sub4, logs0_rho_sub4, logs0_alpha_sub4, xi_sub4, μ_beta_sub4, logσ_beta_sub4, μ0_sub4, logσ0_sub4 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids4_1Mruns.csv", length(sub4_index))
+mu_rho_sub4, mu_alpha_sub4, logs_rho_sub4, logs_alpha_sub4, mu0_rho_sub4, mu0_alpha_sub4, logs0_rho_sub4, logs0_alpha_sub4, xi_sub4, μ_beta_sub4, logσ_beta_sub4, μ0_sub4, logσ0_sub4 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_allS4_10Kruns.csv", length(sub4_index))
 
-mu_rho_sub5, mu_alpha_sub5, logs_rho_sub5, logs_alpha_sub5, mu0_rho_sub5, mu0_alpha_sub5, logs0_rho_sub5, logs0_alpha_sub5, xi_sub5, μ_beta_sub5, logσ_beta_sub5, μ0_sub5, logσ0_sub5 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids5_1Mruns.csv", length(sub5_index))
-```
-
-Cross-validation of different station subsets and without data in year 2000-2010
-
-```{julia}
-mu_rho_t1s1, mu_alpha_t1s1, logs_rho_t1s1, logs_alpha_t1s1, mu0_rho_t1s1, mu0_alpha_t1s1, logs0_rho_t1s1, logs0_alpha_t1s1, xi_t1s1, μ_beta_t1s1, logσ_beta_t1s1, μ0_t1s1, logσ0_t1s1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids1t1_1Mruns.csv", length(sub1_index))
-
-mu_rho_t1s2, mu_alpha_t1s2, logs_rho_t1s2, logs_alpha_t1s2, mu0_rho_t1s2, mu0_alpha_t1s2, logs0_rho_t1s2, logs0_alpha_t1s2, xi_t1s2, μ_beta_t1s2, logσ_beta_t1s2, μ0_t1s2, logσ0_t1s2 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids2t1_1Mruns.csv", length(sub2_index))
-
-mu_rho_t1s3, mu_alpha_t1s3, logs_rho_t1s3, logs_alpha_t1s3, mu0_rho_t1s3, mu0_alpha_t1s3, logs0_rho_t1s3, logs0_alpha_t1s3, xi_t1s3, μ_beta_t1s3, logσ_beta_t1s3, μ0_t1s3, logσ0_t1s3 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids3t1_1Mruns.csv", length(sub3_index))
-
-mu_rho_t1s4, mu_alpha_t1s4, logs_rho_t1s4, logs_alpha_t1s4, mu0_rho_t1s4, mu0_alpha_t1s4, logs0_rho_t1s4, logs0_alpha_t1s4, xi_t1s4, μ_beta_t1s4, logσ_beta_t1s4, μ0_t1s4, logσ0_t1s4 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids4t1_1Mruns.csv", length(sub4_index))
-
-mu_rho_t1s5, mu_alpha_t1s5, logs_rho_t1s5, logs_alpha_t1s5, mu0_rho_t1s5, mu0_alpha_t1s5, logs0_rho_t1s5, logs0_alpha_t1s5, xi_t1s5, μ_beta_t1s5, logσ_beta_t1s5, μ0_t1s5, logσ0_t1s5 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_grids5t1_1Mruns.csv", length(sub5_index))
+mu_rho_sub5, mu_alpha_sub5, logs_rho_sub5, logs_alpha_sub5, mu0_rho_sub5, mu0_alpha_sub5, logs0_rho_sub5, logs0_alpha_sub5, xi_sub5, μ_beta_sub5, logσ_beta_sub5, μ0_sub5, logσ0_sub5 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_allS5_10Kruns.csv", length(sub5_index))
 ```
 
 ### Out of sample predictability (selected stations, box plots)
@@ -191,28 +172,6 @@ gev_sub4 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stat
 
 x_old_sub5 = Matrix(raw_stations[sub5_index, 2:3])'
 gev_sub5 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub5, mu_rho_sub5, mu_alpha_sub5, logs_rho_sub5, logs_alpha_sub5, mu0_rho_sub5, mu0_alpha_sub5, logs0_rho_sub5, logs0_alpha_sub5, xi_sub5, μ_beta_sub5, logσ_beta_sub5, μ0_sub5, logσ0_sub5) for i = 1:n_sim] for s in OFS_s5]...)
-```
-
-subsetting stations and excluding 2000-2010
-
-```{julia}
-# in the function, i is the simluation number (in total n_sim)
-# gev_dist_new(i, x, lons_new, lats_new, x_old, mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi, mu_beta, logs_beta, mu0, logs0) = GP_dist(mu_rho[i], mu_alpha[i], logs_rho[i], logs_alpha[i], mu0_rho[i], mu0_alpha[i], logs0_rho[i], logs0_alpha[i], xi[i], collect(mu_beta[i, :]), collect(logs_beta[i, :]), collect(mu0[i, :]), collect(logs0[i, :]), x_old, lons_new, lats_new, x)
-
-# x_old_sub1 = Matrix(raw_stations[sub1_index, 2:3])'
-# gev_t1s1 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub1, mu_rho_t1s1, mu_alpha_t1s1, logs_rho_t1s1, logs_alpha_t1s1, mu0_rho_t1s1, mu0_alpha_t1s1, logs0_rho_t1s1, logs0_alpha_t1s1, xi_t1s1, μ_beta_t1s1, logσ_beta_t1s1, μ0_t1s1, logσ0_t1s1) for i = 1:n_sim] for s in OFS_s1]...)
-
-# x_old_sub2 = Matrix(raw_stations[sub2_index, 2:3])'
-# gev_t1s2 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub2, mu_rho_t1s2, mu_alpha_t1s2, logs_rho_t1s2, logs_alpha_t1s2, mu0_rho_t1s2, mu0_alpha_t1s2, logs0_rho_t1s2, logs0_alpha_t1s2, xi_t1s2, μ_beta_t1s2, logσ_beta_t1s2, μ0_t1s2, logσ0_t1s2) for i = 1:n_sim] for s in OFS_s2]...)
-
-# x_old_sub3 = Matrix(raw_stations[sub3_index, 2:3])'
-# gev_t1s3 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub3, mu_rho_t1s3, mu_alpha_t1s3, logs_rho_t1s3, logs_alpha_t1s3, mu0_rho_t1s3, mu0_alpha_t1s3, logs0_rho_t1s3, logs0_alpha_t1s3, xi_t1s3, μ_beta_t1s3, logσ_beta_t1s3, μ0_t1s3, logσ0_t1s3) for i = 1:n_sim] for s in OFS_s3]...)
-
-# x_old_sub4 = Matrix(raw_stations[sub4_index, 2:3])'
-# gev_t1s4 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub4, mu_rho_t1s4, mu_alpha_t1s4, logs_rho_t1s4, logs_alpha_t1s4, mu0_rho_t1s4, mu0_alpha_t1s4, logs0_rho_t1s4, logs0_alpha_t1s4, xi_t1s4, μ_beta_t1s4, logσ_beta_t1s4, μ0_t1s4, logσ0_t1s4) for i = 1:n_sim] for s in OFS_s4]...)
-
-# x_old_sub5 = Matrix(raw_stations[sub5_index, 2:3])'
-# gev_t1s5 = hcat([[gev_dist_new(i, log_CO2_2022, raw_stations[s, :].lon, raw_stations[s, :].lat, x_old_sub5, mu_rho_t1s5, mu_alpha_t1s5, logs_rho_t1s5, logs_alpha_t1s5, mu0_rho_t1s5, mu0_alpha_t1s5, logs0_rho_t1s5, logs0_alpha_t1s5, xi_t1s5, μ_beta_t1s5, logσ_beta_t1s5, μ0_t1s5, logσ0_t1s5) for i = 1:n_sim] for s in OFS_s5]...)
 ```
 
 ```{julia}
@@ -323,6 +282,52 @@ gev_sub2_IS = hcat([get_gev.(log_CO2_2022, μ0_sub2[:, s], μ_beta_sub2[:, s], l
 gev_sub3_IS = hcat([get_gev.(log_CO2_2022, μ0_sub3[:, s], μ_beta_sub3[:, s], logσ0_sub3[:, s], logσ_beta_sub3[:, s], xi_sub3) for s in 1:length(sub3_index)]...)
 gev_sub4_IS = hcat([get_gev.(log_CO2_2022, μ0_sub4[:, s], μ_beta_sub4[:, s], logσ0_sub4[:, s], logσ_beta_sub4[:, s], xi_sub4) for s in 1:length(sub4_index)]...)
 gev_sub5_IS = hcat([get_gev.(log_CO2_2022, μ0_sub5[:, s], μ_beta_sub5[:, s], logσ0_sub5[:, s], logσ_beta_sub5[:, s], xi_sub5) for s in 1:length(sub5_index)]...)
+```
+
+```{julia}
+range_diff = (-30, 30)
+color_diff = :RdBu
+f_width = 1300
+f_height = 655
+
+f_cross = Figure(resolution = (f_width, f_height), fontsize=25)
+
+ga = f_cross[1, 1] = GridLayout()
+
+width = f_width/2-140
+height = f_height/3-70
+xticks_size = 20
+yticks_size = 20
+range_CV_rl100 = (10, 17)
+
+function point_axis1(ax, title_name, ylabel_name, var, colorscheme, range, with_xticks, with_yticks)
+    return point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, raw_stations, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size)
+end
+
+function point_axis2(ax, title_name, ylabel_name, raw_stations, var, colorscheme, range, with_xticks, with_yticks, var2, point_df2)
+  return point_axis_2(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, raw_stations, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size, var2, point_df2)
+end
+
+function point_axis3(ax, sub_index, gev_sub_OFS, gev_sub_IS, title_name, ylabel_name, p, with_xticks, with_yticks)
+  station_OFS = raw_stations[setdiff(1:n_stations, sub_index), :]
+  station_IS = raw_stations[sub_index, :]
+  sub_OFS_rl100 = [mean(quantile.(first.(gev_sub_OFS)[:, s], p)) for s in 1:length(setdiff(1:n_stations, sub_index))]
+  sub_IS_rl100 = [mean(quantile.(gev_sub_IS[:, s], p)) for s in 1:length(sub_index)]
+  h1 = point_axis2(ax, title_name, ylabel_name, station_IS, sub_IS_rl100, :roma25, range_CV_rl100, with_xticks, with_yticks, sub_OFS_rl100, station_OFS)
+  return h1
+end
+
+mean_stations_100_all_2022, std_stations_100_all_2022 = rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022, 0.99)
+h1 = point_axis1(ga[1, 1], "all stations", "", mean_stations_100_all_2022, :roma25, range_CV_rl100, false, true)
+point_axis3(ga[1, 2], sub1_index, gev_sub1_OFS, gev_sub1_IS, "subset 1", "", 0.99, false, false)
+point_axis3(ga[2, 1], sub2_index, gev_sub2_OFS, gev_sub2_IS, "subset 2", "", 0.99, false, true)
+point_axis3(ga[2, 2], sub3_index, gev_sub3_OFS, gev_sub3_IS, "subset 3", "", 0.99, false, false)
+point_axis3(ga[3, 1], sub4_index, gev_sub4_OFS, gev_sub4_IS, "subset 4", "", 0.99, true, true)
+point_axis3(ga[3, 2], sub5_index, gev_sub5_OFS, gev_sub5_IS, "subset 5", "", 0.99, true, false)
+
+cb1 = Colorbar(f_cross[1, 2], h1, label = "%", height=Relative(81/100), width = 15, ticklabelsize = 20)
+
+save(plotsdir("1d/5rl100_CV.png"), f_cross)
 ```
 
 ```{julia}

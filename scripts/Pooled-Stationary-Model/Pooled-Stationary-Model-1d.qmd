@@ -117,7 +117,7 @@ model_S_MCMC
 Load previous results (if MCMC was done before)
 
 ```{r}
-model_S_MCMC = readRDS("../../data/processed/1d_results/model_S_1M.Rds")
+model_S_MCMC = readRDS("../../data/processed/1d_results/model_S_y2_10Kruns.Rds")
 model_S_MCMC
 ```
 
@@ -132,7 +132,7 @@ extract_MCMC <- function(MCMC_posterior_all, variable, station_i){
 ```{r}
 variables_S = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "xi")
 n_s = n_station
-model_S_MCMC_i = readRDS("../../data/processed/1d_results/model_S_t1_1M.Rds")
+model_S_MCMC_i = readRDS("../../data/processed/1d_results/model_S_y2_10Kruns.Rds")
 model_S_posterior = matrix(0, nrow = 20000, nc = 5+2*n_s)
 
 for (v in 1:length(variables_S)){
@@ -145,6 +145,6 @@ for (s in 1:n_s){
   model_S_posterior[ , length(variables_S)+n_s+s] = extract_MCMC(model_S_MCMC_i, "logs", s)
 }
 model_S_posterior = as.data.frame(model_S_posterior)
-file_path = "../../data/processed/1d_results/model_S_t1_1M.csv"
+file_path = "../../data/processed/1d_results/model_S_y2_10Kruns.csv"
 write.csv(model_S_posterior, file_path)
 ```

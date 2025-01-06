@@ -106,10 +106,12 @@ for (i in 1:n_station){
   data_N = list(n_obs = n_obs,
                 y = prcp_i[, i],
                 x = log_CO2)
+  print(i)
   
   model_N_MAP = MAP_fit(model_N, data_N)
   init_list_model_N = as.list(model_N_MAP$par)
   model_N_MCMC = MCMC_fit(model_N, data_N, init_list_model_N)
+  print(model_N_MCMC)
   
   model_N_posterior[ , i] = unlist(rstan::extract(model_N_MCMC, paste("mu0", sep = "")))
   model_N_posterior[ , n_station+i] = unlist(rstan::extract(model_N_MCMC, paste("logs0", sep = "")))

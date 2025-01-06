@@ -35,7 +35,7 @@ data {
 }
 
 parameters{
-  real mu0;
+  real<lower=0> mu0;
   real logs0; // use logarithm to ensure positive scale parameter
   
   real<lower=0> xi; // GEV shape parameter
