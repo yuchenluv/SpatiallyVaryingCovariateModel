@@ -5,7 +5,7 @@ execute:
   cache: true
 ---
 
-Mainly plotting results for using all the stations
+Mainly to plot results when using all the stations
 
 # Setup
 
@@ -43,6 +43,8 @@ include(scriptsdir("plot_util.jl"));
 # Load data
 
 ```{julia}
+#| code-fold: true
+
 # all the raw data, including years, prcp and covariates
 raw_data_all = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_daily_30y.csv")))
 
@@ -71,34 +73,44 @@ n_stations = size(raw_stations)[1];
 Some general variables
 
 ```{julia}
+#| code-fold: true
+
 # number of MCMC simulations
 n_sim = 20000
 
 # variables for plotting maps
+
+# states outline
 states = download(
     "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
 )
 states_geo = GeoJSON.read(read(states, String))
 
+# map boundary based on the simulated stations
 Δ = 0.25
 lonlims = (minimum(raw_stations[!, :lon]) - Δ, maximum(raw_stations[!, :lon]) + Δ)
 latlims = (minimum(raw_stations[!, :lat]) - Δ, maximum(raw_stations[!, :lat]) + Δ)
 
+# function to plot one sub map
 function point_axis1(ax, title_name, ylabel_name, var, colorscheme, range, with_xticks, with_yticks)
     return point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, raw_stations, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size)
-end
+end;
 ```
 
 # Map of number of observations
 
 ```{julia}
+#| code-fold: true
+
 # get the number of observations for each station
 obs_counts = [count(!ismissing, raw_prcp[!, col]) for col in names(raw_prcp)]
 raw_stations.n_obs = obs_counts;
-raw_data_df = raw_stations # substitute raw_data_df later
+raw_data_df = raw_stations; # substitute raw_data_df later
 ```
 
 ```{julia}
+#| code-fold: true
+
 # number of observations
 f_width = 700
 f_height = 225
@@ -107,18 +119,17 @@ f_obs = Figure(resolution = (f_width, f_height), fontsize=20)
 width = f_width - 180
 height = f_height - 60
 h1 = point_axis(f_obs[1, 1], "", lonlims, latlims, "", width, height, states_geo, raw_stations, raw_stations[:, :n_obs], :matter, (30, 120), true, true, 15, 15)
-cb1 = Colorbar(f_obs[1, 2], h1, label = "record length (years)", height=Relative(85/100), width = 15, ticklabelsize = 15, labelsize = 18, valign=:top)
+cb1 = Colorbar(f_obs[1, 2], h1, label = "record length (years)", height=Relative(85/100), width = 15, ticklabelsize = 15, labelsize = 18, valign=:top);
 
-# save(plotsdir("1d/1raw_data_nobs_all.png"), f_obs)
+# save(plotsdir("1d/1raw_data_nobs_all.png"), f_obs);
 ```
 
 # Correlation coefficients
 
 ```{julia}
-cor_logCO2 = cor_df(raw_prcp, log_CO2)
-```
+#| code-fold: true
 
-```{julia}
+cor_logCO2 = cor_df(raw_prcp, log_CO2)
 f_width = 700
 f_height = 225
 f_cor = Figure(resolution = (f_width, f_height))
@@ -126,9 +137,9 @@ f_cor = Figure(resolution = (f_width, f_height))
 width = f_width - 180
 height = f_height - 60
 h1 = point_axis(f_cor[1, 1], "", lonlims, latlims, "", width, height, states_geo, raw_stations, cor_logCO2[:, 2], :RdBu, (-0.3, 0.3), true, true, 15, 15)
-cb1 = Colorbar(f_cor[1, 2], h1, label = "kendall correlation", height=Relative(85/100), width = 15, ticklabelsize = 15, labelsize = 18, valign=:top)
+cb1 = Colorbar(f_cor[1, 2], h1, label = "kendall correlation", height=Relative(85/100), width = 15, ticklabelsize = 15, labelsize = 18, valign=:top);
 
-save(plotsdir("1d/2logCO2_cor.png"), f_cor)
+# save(plotsdir("1d/2logCO2_cor.png"), f_cor);
 ```
 
 # MCMC results (points)
