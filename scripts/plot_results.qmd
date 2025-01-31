@@ -5,7 +5,7 @@ execute:
   cache: true
 ---
 
-Mainly to plot results when using all the stations
+Mainly to plot results when modeling all the stations
 
 # Setup
 
@@ -21,6 +21,7 @@ using DataFramesMeta
 using Dates
 using Distributions
 using DrWatson
+using GeoDatasets
 using GeoJSON
 using GeoMakie
 using HTTP
@@ -70,7 +71,7 @@ raw_stations = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_stations_30y.cs
 n_stations = size(raw_stations)[1];
 ```
 
-Some general variables
+Some general variables/functions
 
 ```{julia}
 #| code-fold: true
@@ -91,9 +92,18 @@ states_geo = GeoJSON.read(read(states, String))
 lonlims = (minimum(raw_stations[!, :lon]) - Δ, maximum(raw_stations[!, :lon]) + Δ)
 latlims = (minimum(raw_stations[!, :lat]) - Δ, maximum(raw_stations[!, :lat]) + Δ)
 
-# function to plot one sub map
-function point_axis1(ax, title_name, ylabel_name, var, colorscheme, range, with_xticks, with_yticks)
-    return point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, raw_stations, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size)
+# function to plot one sub map of points
+function point_axis1(ax, title_name, ylabel_name, var, colorscheme, range, with_xticks, with_yticks; marker_size = 20)
+    return point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, raw_stations, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size, marker_size = marker_size)
+end
+
+# function to plot one sub map of grids
+function grid_axis1(ax, title_name, ylabel_name, var, colorscheme, range, with_xticks, with_yticks; xticklabelpad = 10)
+    return grid_axis(ax, title_name, lonlims, latlims, ylabel_name, 
+                     lons_transformed, lats_transformed, 
+                     width, height, states_geo, raw_stations, var, colorscheme, range, 
+                     with_xticks, with_yticks, xticks_size, yticks_size; 
+                     xticklabelpad = xticklabelpad)
 end;
 ```
 
@@ -109,7 +119,7 @@ raw_data_df = raw_stations; # substitute raw_data_df later
 ```
 
 ```{julia}
-#| code-fold: true
+#| code-fold: false
 
 # number of observations
 f_width = 700
@@ -118,16 +128,18 @@ f_obs = Figure(resolution = (f_width, f_height), fontsize=20)
 
 width = f_width - 180
 height = f_height - 60
-h1 = point_axis(f_obs[1, 1], "", lonlims, latlims, "", width, height, states_geo, raw_stations, raw_stations[:, :n_obs], :matter, (30, 120), true, true, 15, 15)
-cb1 = Colorbar(f_obs[1, 2], h1, label = "record length (years)", height=Relative(85/100), width = 15, ticklabelsize = 15, labelsize = 18, valign=:top);
+h1 = point_axis(f_obs[1, 1], "", lonlims, latlims, "", width, height, states_geo, raw_stations, raw_stations[:, :n_obs], :matter, (30, 120), true, true, 15, 15, marker_size = 16)
+cb1 = Colorbar(f_obs[1, 2], h1, label = "Record length (years)", height=Relative(85/100), width = 15, ticklabelsize = 15, labelsize = 15, valign=:top)
 
-# save(plotsdir("1d/1raw_data_nobs_all.png"), f_obs);
+f_obs;
+
+# save(plotsdir("1d/1raw_data_nobs_all.pdf"), f_obs);
 ```
 
 # Correlation coefficients
 
 ```{julia}
-#| code-fold: true
+#| code-fold: false
 
 cor_logCO2 = cor_df(raw_prcp, log_CO2)
 f_width = 700
@@ -136,10 +148,12 @@ f_cor = Figure(resolution = (f_width, f_height))
 
 width = f_width - 180
 height = f_height - 60
-h1 = point_axis(f_cor[1, 1], "", lonlims, latlims, "", width, height, states_geo, raw_stations, cor_logCO2[:, 2], :RdBu, (-0.3, 0.3), true, true, 15, 15)
-cb1 = Colorbar(f_cor[1, 2], h1, label = "kendall correlation", height=Relative(85/100), width = 15, ticklabelsize = 15, labelsize = 18, valign=:top);
+h1 = point_axis(f_cor[1, 1], "", lonlims, latlims, "", width, height, states_geo, raw_stations, cor_logCO2[:, 2], :RdBu, (-0.3, 0.3), true, true, 15, 15, marker_size = 16)
+cb1 = Colorbar(f_cor[1, 2], h1, label = "Kendall correlation", height=Relative(85/100), width = 15, ticklabelsize = 15, labelsize = 15, valign=:top)
 
-# save(plotsdir("1d/2logCO2_cor.png"), f_cor);
+f_cor
+
+# save(plotsdir("1d/2logCO2_cor.pdf"), f_cor);
 ```
 
 # MCMC results (points)
@@ -149,19 +163,52 @@ cb1 = Colorbar(f_cor[1, 2], h1, label = "kendall correlation", height=Relative(8
 ### Pooled Stationary Model
 
 ```{julia}
+#| code-fold: true
+
+# parameters
 mu_rho_s_all, mu_alpha_s_all, logs_rho_s_all, logs_alpha_s_all, xi_s_all, mu_s_all, logs_s_all = read_MCMC_results_S("processed/1d_results/model_S_all_10Kruns.csv", n_stations);
+```
+
+```{julia}
+#| code-fold: true
+
+# posterior mean/std for 100 and 10 year events
+mean_stations_S = [rl_etimate_S(raw_stations, mu_s_all, logs_s_all, xi_s_all, p)[1] for p in [0.9, 0.99]]
+# std_stations_S = [rl_etimate_S(raw_stations, mu_s_all, logs_s_all, xi_s_all, p)[2] for p in [0.9, 0.99]]
 ```
 
 ### Nonpooled Nonstationary Model
 
 ```{julia}
+#| code-fold: true
+
+# parameters
 mu0_N_all, logs0_N_all, xi_N_all, mu_beta_N_all, logs_beta_N_all = read_MCMC_results_N("processed/1d_results/model_N_all_10Kruns.csv", n_stations);
+```
+
+```{julia}
+#| code-fold: true
+
+# posterior mean/std for 100 and 10 year events
+mean_stations_N = [rl_estimate_N(raw_stations, mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022, p)[1] for p in [0.9, 0.99]]
+# std_stations_N = [rl_estimate_N(raw_stations, mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022, p)[2] for p in [0.9, 0.99]]
 ```
 
 ### Spatially Varying Covariate Model
 
 ```{julia}
+#| code-fold: true
+
+# parameters
 mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_all_10Kruns.csv", n_stations);
+```
+
+```{julia}
+#| code-fold: true
+
+# posterior mean/std for 100 and 10 year events
+mean_stations_full = [rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022, p)[1] for p in [0.9, 0.99]]
+# std_stations_full = [rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022, p)[2] for p in [0.9, 0.99]]
 ```
 
 ## validation: Quantiles (simulated stations and years)
@@ -169,14 +216,17 @@ mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alp
 This plots the quantile plots for using all data with the full model
 
 ```{julia}
+#| code-fold: false
+
 # for using all data
 non_missing_count = [count(!ismissing, col) for col in eachcol(raw_prcp)]
 total_records = sum(non_missing_count)
 k = sim_quantiles(raw_prcp, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2, total_records, n_sim)
-quantile_all_singlePlot = Plots.histogram(vec(k), bins = 30, legend = false, xlabel = "posterior probability of observations", ylabel = "normalized frequency", normalize = :pdf, fill = true, color = :grey, fillalpha = 0.6, title = "")
+quantile_all_singlePlot = Plots.histogram(vec(k), bins = 30, legend = false, xlabel = "Posterior probability of observations", ylabel = "Normalized frequency", normalize = :pdf, fill = true, color = :grey, fillalpha = 0.6, title = "")
 hline!([1], color = :blue, linewidth = 3, xlabelfontsize = 10, ylabelfontsize = 10)
-annotate!([0.95], [0.95], Plots.text("ideal", :right, 10, :blue))
-# save(plotsdir("1d/3quantiles_all_singlePlot.png"), quantile_all_singlePlot)
+annotate!([0.95], [0.95], Plots.text("Ideal", :right, 10, :blue))
+quantile_all_singlePlot
+# save(plotsdir("1d/3quantiles_all_singlePlot.pdf"), quantile_all_singlePlot)
 ```
 
 ## trends in points (Full Model)
@@ -184,6 +234,8 @@ annotate!([0.95], [0.95], Plots.text("ideal", :right, 10, :blue))
 Maps of estimates in 1940, 2022 and percentage difference
 
 ```{julia}
+#| code-fold: true
+
 # Spatially Varying Covariate Model
 mean_stations_10_all_1940, std_stations_10_all_1940 = rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_1940, 0.9)
 mean_stations_50_all_1940, std_stations_50_all_1940 = rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_1940, 0.98)
@@ -195,6 +247,8 @@ mean_stations_100_all_2022, std_stations_100_all_2022 = rl_estimate_full(raw_sta
 ```
 
 ```{julia}
+#| code-fold: false
+
 trend_df = [mean_stations_10_all_2022, mean_stations_100_all_2022, mean_stations_10_all_1940, mean_stations_100_all_1940, (mean_stations_10_all_2022 .- mean_stations_10_all_1940) ./ mean_stations_10_all_1940 .* 100, (mean_stations_100_all_2022 .- mean_stations_100_all_1940) ./ mean_stations_100_all_1940 .* 100]
 
 range_rl = (5, 15.5)
@@ -230,8 +284,10 @@ cb2 = Colorbar(f_trends[2, 2], h2, label = "%", height=Relative(82/100), width =
 rowsize!(f_trends.layout, 1, Relative(199/300))
 colsize!(f_trends.layout, 1, Relative(1))
 resize_to_layout!(f_trends)
-# f_trends
-save(plotsdir("1d/7p_trend_points.png"), f_trends)
+
+f_trends
+
+# save(plotsdir("1d/7p_trend_points.pdf"), f_trends)
 ```
 
 ## model comparison
@@ -239,6 +295,8 @@ save(plotsdir("1d/7p_trend_points.png"), f_trends)
 ### nonstationary coefficients map
 
 ```{julia}
+#| code-fold: false
+
 μ_beta_mean = mean.(eachcol(μ_beta_all))
 logσ_beta_mean = mean.(eachcol(logσ_beta_all))
 μ_beta_N_mean = mean.(eachcol(mu_beta_N_all))
@@ -253,71 +311,17 @@ height = f_height/2-60
 xticks_size = 20
 yticks_size = 20
 
-h1 = point_axis(f_coef[1, 1], "Nonpooled Nonstationary Model", lonlims, latlims, "location", width, height, states_geo, raw_stations, μ_beta_N_mean, :PuOr, (-4, 4), false, true, xticks_size, yticks_size)
+h1 = point_axis(f_coef[1, 1], "Nonpooled Nonstationary Model", lonlims, latlims, "Location", width, height, states_geo, raw_stations, μ_beta_N_mean, :PuOr, (-4, 4), false, true, xticks_size, yticks_size)
 h2 = point_axis(f_coef[1, 2], "Spatially Varying Covariate Model", lonlims, latlims, "", width, height, states_geo, raw_stations, μ_beta_mean, :PuOr, (-4, 4), false, false, xticks_size, yticks_size)
 cb2 = Colorbar(f_coef[1, 3], h2, label = "", height=Relative(82/100), width = 15, ticklabelsize = 20, valign=:bottom)
 
-h3 = point_axis(f_coef[2, 1], "", lonlims, latlims, "scale", width, height, states_geo, raw_stations, logσ_beta_N_mean, :PuOr, (-1.5, 1.5), true, true, xticks_size, yticks_size)
-h4 = point_axis(f_coef[2, 2], "", lonlims, latlims, "", width, height, states_geo, raw_stations, logσ_beta_mean, :PuOr, (-1.5, 1.5), true, false, xticks_size, yticks_size)
+h3 = point_axis(f_coef[2, 1], "", lonlims, latlims, "Scale", width, height, states_geo, raw_stations, logσ_beta_N_mean, :PuOr, (-1.5, 1.5), true, true, xticks_size, yticks_size; xticklabelpad = 13)
+h4 = point_axis(f_coef[2, 2], "", lonlims, latlims, "", width, height, states_geo, raw_stations, logσ_beta_mean, :PuOr, (-1.5, 1.5), true, false, xticks_size, yticks_size; xticklabelpad = 13)
 cb4 = Colorbar(f_coef[2, 3], h4, label = "", height=Relative(82/100), width = 15, ticklabelsize = 20, valign=:top)
 
-# f_coef
-# save(plotsdir("1d/6p_coefficients.png"), f_coef)
-```
+f_coef
 
-### point return level estimates
-
-```{julia}
-mean_stations_full = [rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022, p)[1] for p in [0.9, 0.99]]
-std_stations_full = [rl_estimate_full(raw_stations, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022, p)[2] for p in [0.9, 0.99]]
-
-mean_stations_S = [rl_etimate_S(raw_stations, mu_s_all, logs_s_all, xi_s_all, p)[1] for p in [0.9, 0.99]]
-std_stations_S = [rl_etimate_S(raw_stations, mu_s_all, logs_s_all, xi_s_all, p)[2] for p in [0.9, 0.99]]
-
-mean_stations_N = [rl_estimate_N(raw_stations, mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022, p)[1] for p in [0.9, 0.99]]
-std_stations_N = [rl_estimate_N(raw_stations, mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022, p)[2] for p in [0.9, 0.99]]
-
-rl_results_mean = vcat(mean_stations_S, mean_stations_N, mean_stations_full)
-rl_results_std = vcat(std_stations_S, std_stations_N, std_stations_full)
-```
-
-```{julia}
-range_rl = (6, 16.5)
-range_unc = (0, 3)
-color_rl = :roma25
-color_unc = :GnBu
-f_width = 1400
-f_height = 675
-
-f_trends = Figure(resolution = (f_width, f_height), fontsize=25)
-
-ga = f_trends[1, 1] = GridLayout()
-
-width = f_width/2-150
-height = f_height/3-60
-xticks_size = 20
-yticks_size = 20
-function point_axis1(ax, title_name, ylabel_name, var, colorscheme, range, with_xticks, with_yticks)
-    return point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, raw_stations, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size)
-end
-
-h1 = point_axis1(ga[1, 1], "10 year", "2022", trend_df[1], color_rl, range_rl, false, true)
-point_axis1(ga[1, 2], "100 year", "", trend_df[2], color_rl, range_rl, false, false)
-
-point_axis1(ga[2, 1], "", "1940", trend_df[3], color_rl, range_rl, false, true)
-point_axis1(ga[2, 2], "", "", trend_df[4], color_rl, range_rl, false, false)
-
-h2 = point_axis1(gb[1, 1], "", "Difference", trend_df[5], color_change, range_change, true, true)
-point_axis1(gb[1, 2], "", "", trend_df[6], color_change, range_change, true, false)
-
-cb1 = Colorbar(f_trends[1, 2], h1, label = "inches", height=Relative(89/100), width = 15, ticklabelsize = 20, valign=:bottom)
-
-rowsize!(f_trends.layout, 1, Relative(199/300))
-colsize!(f_trends.layout, 1, Relative(1))
-resize_to_layout!(f_trends)
-
-# save(plotsdir("1d/8model_comparison_rlmean.png"), p_rl_points_mean)
-# save(plotsdir("1d/9model_comparison_rlstd.png"), p_rl_points_std)
+# save(plotsdir("1d/6p_coefficients.pdf"), f_coef)
 ```
 
 ## compare with Atlas 14
@@ -325,11 +329,14 @@ resize_to_layout!(f_trends)
 Atlas 14 estimates
 
 ```{julia}
+#| code-fold: true
+
 # 15min, 1h, 6h, 1d
 rows = [3, 5, 8, 10]
 # 2y, 5y, 10y, 25y, 50y, 100y
 cols = [2, 3, 4, 5, 6, 7]
 
+# webscrap and save Atlas 14 estimates
 # Atlas14_rl10_1d = [get_Atlas14(string(raw_stations[!, :lat][i]), string(raw_stations[!, :lon][i]), 10, 4) for i in 1:length(raw_stations[!, :lat])]
 # Atlas14_rl50_1d = [get_Atlas14(string(raw_stations[!, :lat][i]), string(raw_stations[!, :lon][i]), 10, 6) for i in 1:length(raw_stations[!, :lat])]
 # Atlas14_rl100_1d = [get_Atlas14(string(raw_stations[!, :lat][i]), string(raw_stations[!, :lon][i]), 10, 7) for i in 1:length(raw_data_df[!, :lat])]
@@ -346,6 +353,8 @@ Atlas14_rl100_1d = df_Altas14[:, 3];
 ### map of Atlas 14 comparison (different models)
 
 ```{julia}
+#| code-fold: false
+
 Atlas14_comparison = [
     (mean_stations_S[1] .- Atlas14_rl10_1d) ./ Atlas14_rl10_1d .* 100,
     (mean_stations_N[1] .- Atlas14_rl10_1d) ./ Atlas14_rl10_1d .* 100,
@@ -380,12 +389,16 @@ point_axis1(ga[3, 2], "", "", Atlas14_comparison[6], color_diff, range_diff, tru
 
 cb1 = Colorbar(f_diff[1, 2], h1, label = "%", height=Relative(87.5/100), width = 15, ticklabelsize = 20)
 
-save(plotsdir("1d/10Atlas14_comparison.png"), f_diff)
+f_diff
+
+# save(plotsdir("1d/10Atlas14_comparison.pdf"), f_diff)
 ```
 
 ### time series of Atlas 14 comparison (full model)
 
 ```{julia}
+#| code-fold: false
+
 # Houston, 29.7914, -95.4261, 121
 # New Orleans, 29.9167, -90.1303, 168
 # Galveston, 29.2703, -94.8642, 167
@@ -402,9 +415,7 @@ p_Hou = plot_time_series(vcat(years, 2050), "Houston, TX", ts_dist_Hou; x_label 
 p_NOLA = plot_time_series(vcat(years, 2050), "New Orleans, LA", ts_dist_NOLA; x_label = "", y_label = " ", Atlas14 = Atlas14_rl100_1d[index_cities[2]], lengend_loc = false)
 p_Gal = plot_time_series(vcat(years, 2050), "Galveston, TX", ts_dist_Gal; x_label = "Year", y_label = "100 year return level [inches/d]", Atlas14 = Atlas14_rl100_1d[index_cities[3]], lengend_loc = false)
 p_Mob = plot_time_series(vcat(years, 2050), "Mobile, AL", ts_dist_Mob; x_label = "Year", y_label = " ", Atlas14 = Atlas14_rl100_1d[index_cities[4]], lengend_loc = false);
-```
 
-```{julia}
 layout = @layout [
     a a
     a a
@@ -416,76 +427,14 @@ p_ts_cities = Plots.plot(
     p_Gal,
     p_Mob,
     layout = layout,
-    size = (1500, 1000)
+    size = (1000, 667)
 )
 
 Plots.plot!(p_ts_cities, left_margin = 10Plots.mm, bottom_margin = 5Plots.mm)
 
-save(plotsdir("1d/p_ts_cities.png"), p_ts_cities)
-```
+p_ts_cities
 
-### Single location all return level estimate (three models)
-
-```{julia}
-cities_names = ["Houston, TX", "New Orleans, LA", "Galveston, TX", "Mobile, AL"]
-coords_cities = [[-95.4261, 29.7914], [-90.1303, 29.9167], [-94.8642, 29.2703], [-88.0333, 30.6833]]
-index_cities = [121, 168, 167, 5]
-# Houston, 29.7914, -95.4261, 121
-# New Orleans, 29.9167, -90.1303, 168
-# Galveston, 29.2703, -94.8642, 167
-# Mobile, 30.6833, -88.0333, 5
-
-# Atlas_14_Hou = get_Atlas14_IDF(string(coords_cities[1][2]), string(coords_cities[1][1]))
-# Atlas_14_NOLA = get_Atlas14_IDF(string(coords_cities[2][2]), string(coords_cities[2][1]))
-# Atlas_14_Gal = get_Atlas14_IDF(string(coords_cities[3][2]), string(coords_cities[3][1]))
-# Atlas_14_Mob = get_Atlas14_IDF(string(coords_cities[4][2]), string(coords_cities[4][1]))
-
-dist_Hou_S = get_dist_MCMC_S(index_cities[1], mu_s_all, logs_s_all, xi_s_all)
-dist_NOLA_S = get_dist_MCMC_S(index_cities[2], mu_s_all, logs_s_all, xi_s_all)
-dist_Gal_S = get_dist_MCMC_S(index_cities[3], mu_s_all, logs_s_all, xi_s_all)
-dist_Mob_S = get_dist_MCMC_S(index_cities[4], mu_s_all, logs_s_all, xi_s_all)
-p_rl_Hou_S = plot_return_period(Atlas_14_Hou, "Pooled Stationary Model", (0, 50), dist_Hou_S, lengend_loc=:topleft, x_label="", y_label=cities_names[1])
-p_rl_NOLA_S = plot_return_period(Atlas_14_NOLA, "", (0, 50), dist_NOLA_S, lengend_loc=false, x_label="", y_label=cities_names[2])
-p_rl_Gal_S = plot_return_period(Atlas_14_Gal, "", (0, 50), dist_Gal_S, lengend_loc=false, x_label="", y_label=cities_names[3])
-p_rl_Mob_S = plot_return_period(Atlas_14_Mob, "", (0, 50), dist_Mob_S, lengend_loc=false, x_label="", y_label=cities_names[4])
-
-dist_Hou_N = get_dist_MCMC_N(index_cities[1], mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022)
-dist_NOLA_N = get_dist_MCMC_N(index_cities[2], mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022)
-dist_Gal_N = get_dist_MCMC_N(index_cities[3], mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022)
-dist_Mob_N = get_dist_MCMC_N(index_cities[4], mu_beta_N_all, logs_beta_N_all, mu0_N_all, logs0_N_all, xi_N_all, log_CO2_2022)
-p_rl_Hou_N = plot_return_period(Atlas_14_Hou, "Nonpooled Nonstationary Model", (0, 50), dist_Hou_N, lengend_loc=false, x_label="", y_label="")
-p_rl_NOLA_N = plot_return_period(Atlas_14_NOLA, "", (0, 50), dist_NOLA_N, lengend_loc=false, x_label="", y_label="")
-p_rl_Gal_N = plot_return_period(Atlas_14_Gal, "", (0, 50), dist_Gal_N, lengend_loc=false, x_label="", y_label="")
-p_rl_Mob_N = plot_return_period(Atlas_14_Mob, "", (0, 50), dist_Mob_N, lengend_loc=false, x_label="", y_label="")
-
-dist_Hou_full = get_dist_MCMC_full(index_cities[1], μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022)
-dist_NOLA_full = get_dist_MCMC_full(index_cities[2], μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022)
-dist_Gal_full = get_dist_MCMC_full(index_cities[3], μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022)
-dist_Mob_full = get_dist_MCMC_full(index_cities[4], μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, log_CO2_2022)
-p_rl_Hou_full = plot_return_period(Atlas_14_Hou, "Spatially Varying Covariate Model", (0, 50), dist_Hou_full, lengend_loc = false, x_label = "", y_label = "")
-p_rl_NOLA_full = plot_return_period(Atlas_14_NOLA, "", (0, 50), dist_NOLA_full, lengend_loc = false, x_label = "", y_label = "")
-p_rl_Gal_full = plot_return_period(Atlas_14_Gal, "", (0, 50), dist_Gal_full, lengend_loc = false, x_label = "", y_label = "")
-p_rl_Mob_full = plot_return_period(Atlas_14_Mob, "", (0, 50), dist_Mob_full, lengend_loc = false, x_label = "", y_label = "");
-```
-
-```{julia}
-layout = @layout [
-    a a a
-    a a a
-    a a a
-    a a a
-]
-p_rl_stations = Plots.plot(
-    p_rl_Hou_S, p_rl_Hou_N, p_rl_Hou_full,
-    p_rl_NOLA_S, p_rl_NOLA_N, p_rl_NOLA_full, 
-    p_rl_Gal_S, p_rl_Gal_N, p_rl_Gal_full, 
-    p_rl_Mob_S, p_rl_Mob_N, p_rl_Mob_full, 
-    layout = layout,
-    size = (1800, 1500),
-)
-Plots.plot!(p_rl_stations, left_margin = 10Plots.mm, bottom_margin = 10Plots.mm)
-
-save(plotsdir("1d/p_rl_stations.png"), p_rl_stations)
+# save(plotsdir("1d/11p_ts_cities.pdf"), p_ts_cities)
 ```
 
 ## gridded MCMC results
@@ -493,6 +442,8 @@ save(plotsdir("1d/p_rl_stations.png"), p_rl_stations)
 Generate a set of new points
 
 ```{julia}
+#| code-fold: true
+
 # resoluation of 1km * 1km
 # lons_transformed = range(minimum(point_df[!, :lon]), maximum(point_df[!, :lon]), length=1175)
 # lats_transformed = range(minimum(point_df[!, :lat]), maximum(point_df[!, :lat]), length=276)
@@ -507,81 +458,106 @@ lons_new_vec = vec([vector[1] for vector in X_transformed])
 lats_new_vec = vec([vector[2] for vector in X_transformed])
 
 # X_old = [[lon, lat] for (lon, lat) in zip(raw_stations[!, :lon], raw_stations[!, :lat])]
-X_old = Matrix(raw_stations[:, 2:3])'
-```
-
-Function to filter inland grids
-
-```{julia}
-function check_inland(coord)
-    mask = GeoDatasets.LandSeaMask()
-    if GeoDatasets.is_land(mask, coord[2], coord[1])
-        return true
-    else
-        return false
-    end
-end
+X_old = Matrix(raw_stations[:, 2:3])';
 ```
 
 Interpolation with GP parameters
 
 ```{julia}
+#| code-fold: true
+
 gev_dist_interp(i, x) = GP_dist(mu_rho[i], mu_alpha[i], logs_rho[i], logs_alpha[i], mu0_rho[i], mu0_alpha[i], logs0_rho[i], logs0_alpha[i], xi_all[i], collect(μ_beta_all[i, :]), collect(logσ_beta_all[i, :]), collect(μ0_all[i, :]), collect(logσ0_all[i, :]), X_old, lons_new_vec, lats_new_vec, x)
 
 gev_dist_interp_matrix(x, n_sim) = hcat([gev_dist_interp(i, x) for i in 1:n_sim]...)
 rl_interp_matrix(gev_dist_interp, p) = reshape(vec(mean(quantile.(gev_dist_interp, p), dims=2)), (n_lons, n_lats))
 
-gev_dist_interp_2022 = gev_dist_interp_matrix(log_CO2_2022, 10000)
-rl100_interp_2022 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_2022, 0.99))
+# gev_dist_interp_2022 = gev_dist_interp_matrix(log_CO2_2022, 10000)
+gev_dist_interp_2022 = GP_dist(mean(mu_rho), mean(mu_alpha), mean(logs_rho), mean(logs_alpha), mean(mu0_rho), mean(mu0_alpha), mean(logs0_rho), mean(logs0_alpha), mean(xi_all), vec(mean(Matrix(μ_beta_all), dims=1)), vec(mean(Matrix(logσ_beta_all), dims=1)), vec(mean(Matrix(μ0_all), dims=1)), vec(mean(Matrix(logσ0_all), dims=1)), X_old, lons_new_vec, lats_new_vec, log_CO2_2022)
+rl100_interp_2022 = Vector{Union{Float64,Missing}}(quantile.(gev_dist_interp_2022, 0.99))
+rl50_interp_2022 = Vector{Union{Float64,Missing}}(quantile.(gev_dist_interp_2022, 0.98))
+rl10_interp_2022 = Vector{Union{Float64,Missing}}(quantile.(gev_dist_interp_2022, 0.9))
+# rl100_interp_2022 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_2022, 0.99))
 # rl50_interp_2022 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_2022, 0.98))
 # rl10_interp_2022 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_2022, 0.9))
 
-gev_dist_interp_1940 = gev_dist_interp_matrix(log_CO2_1940, 10000)
-rl100_interp_1940 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_1940, 0.99))
+# gev_dist_interp_1940 = gev_dist_interp_matrix(log_CO2_1940, 10000)
+gev_dist_interp_1940 = GP_dist(mean(mu_rho), mean(mu_alpha), mean(logs_rho), mean(logs_alpha), mean(mu0_rho), mean(mu0_alpha), mean(logs0_rho), mean(logs0_alpha), mean(xi_all), vec(mean(Matrix(μ_beta_all), dims=1)), vec(mean(Matrix(logσ_beta_all), dims=1)), vec(mean(Matrix(μ0_all), dims=1)), vec(mean(Matrix(logσ0_all), dims=1)), X_old, lons_new_vec, lats_new_vec, log_CO2_1940)
+rl100_interp_1940 = Vector{Union{Float64,Missing}}(quantile.(gev_dist_interp_1940, 0.99))
+rl50_interp_1940 = Vector{Union{Float64,Missing}}(quantile.(gev_dist_interp_1940, 0.98))
+rl10_interp_1940 = Vector{Union{Float64,Missing}}(quantile.(gev_dist_interp_1940, 0.9))
+# rl100_interp_1940 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_1940, 0.99))
 # rl50_interp_1940 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_1940, 0.98))
 # rl10_interp_1940 = Matrix{Union{Float64,Missing}}(rl_interp_matrix(gev_dist_interp_1940, 0.9))
 
-rl100_interp_change = Matrix{Union{Float64,Missing}}((rl100_interp_2022 .- rl100_interp_1940) ./ rl100_interp_1940 .* 100)
+rl100_interp_change = Vector{Union{Float64,Missing}}((rl100_interp_2022 .- rl100_interp_1940) ./ rl100_interp_1940 .* 100)
+rl50_interp_change = Vector{Union{Float64,Missing}}((rl50_interp_2022 .- rl50_interp_1940) ./ rl50_interp_1940 .* 100)
+rl10_interp_change = Vector{Union{Float64,Missing}}((rl10_interp_2022 .- rl10_interp_1940) ./ rl10_interp_1940 .* 100)
+# rl100_interp_change = Matrix{Union{Float64,Missing}}((rl100_interp_2022 .- rl100_interp_1940) ./ rl100_interp_1940 .* 100)
 # rl50_interp_change = Matrix{Union{Float64,Missing}}((rl50_interp_2022 .- rl50_interp_1940) ./ rl50_interp_1940 .* 100)
-# rl10_interp_change = Matrix{Union{Float64,Missing}}((rl10_interp_2022 .- rl10_interp_1940) ./ rl10_interp_1940 .* 100)
+# rl10_interp_change = Matrix{Union{Float64,Missing}}((rl10_interp_2022 .- rl10_interp_1940) ./ rl10_interp_1940 .* 100);
 ```
 
 check in-land
 
 ```{julia}
-for i in 1:n_lons
-    for j in 1:n_lats
-        if check_inland(X_transformed[i, j])
-            nothing
-        else
-            rl100_interp_2022[i, j] = missing
-            rl10_interp_2022[i, j] = missing
-            rl100_interp_change[i, j] = missing
-            rl10_interp_change[i, j] = missing
-        end
+#| code-fold: true
+
+for i in 1:length(lons_new_vec)
+    if check_inland([lons_new_vec[i], lats_new_vec[i]])
+        nothing
+    else
+        rl100_interp_2022[i] = missing
+        rl10_interp_2022[i] = missing
+        rl100_interp_1940[i] = missing
+        rl10_interp_1940[i] = missing
+        rl100_interp_change[i] = missing
+        rl10_interp_change[i] = missing
     end
-end
+end;
 ```
 
 ```{julia}
-var_transformed_all = [rl10_interp_2022, rl100_interp_2022, rl10_interp_change, rl100_interp_change]
+#| code-fold: false
 
-res = (1500, 500)
-row_hs = [900, 900]
+trend_df = [reshape(rl10_interp_2022, length(lons_transformed), length(lats_transformed)), reshape(rl100_interp_2022, length(lons_transformed), length(lats_transformed)), reshape(rl10_interp_1940, length(lons_transformed), length(lats_transformed)), reshape(rl100_interp_1940, length(lons_transformed), length(lats_transformed)), reshape(rl10_interp_change, length(lons_transformed), length(lats_transformed)), reshape(rl100_interp_change, length(lons_transformed), length(lats_transformed))]
 
-rows = [1, 1, 2, 2]
-cols = [1, 2, 1, 2]
 
-row_names = ["2022", "", "2022-1940", ""]
-col_names = [" ", " ", " ", " "]
-title_names = ["10 year", "100 year", "", ""]
-bar_name = ["", "inches/d", "", "% difference"]
+range_rl = (5, 15.5)
+range_change = (10, 35)
+color_rl = :roma25
+color_change = :BuPu
+f_width = 1400
+f_height = 675
 
-colors = [:roma10, :roma10, :YlGn_6, :YlGn_6]
+f_trends = Figure(resolution = (f_width, f_height), fontsize=25)
 
-ranges = [(6, 16), (6, 16), (15, 28), (15, 28)]
+ga = f_trends[1, 1] = GridLayout()
+gb = f_trends[2, 1] = GridLayout()
 
-gridded_rl_change = map_grids_subplots(raw_data_df, lons_transformed, lats_transformed, var_transformed_all, colors, rows, cols, row_names, col_names, res, row_hs, title_names, ranges; diff_coord=false, bar_all=false, diff_colbar=true, bar_name=bar_name)
+width = f_width/2-150
+height = f_height/3-60
+xticks_size = 20
+yticks_size = 20
 
-# save(plotsdir("1d/gridded_rl_change.png"), gridded_rl_change)
+# grid_axis1(ax, title_name, ylabel_name, var, colorscheme, range, with_xticks, with_yticks; xticklabelpad)
+h1 = grid_axis1(ga[1, 1], "10 year", "2022", trend_df[1], color_rl, range_rl, false, true)
+grid_axis1(ga[1, 2], "100 year", "", trend_df[2], color_rl, range_rl, false, false)
+
+grid_axis1(ga[2, 1], "", "1940", trend_df[3], color_rl, range_rl, false, true)
+grid_axis1(ga[2, 2], "", "", trend_df[4], color_rl, range_rl, false, false)
+
+cb1 = Colorbar(f_trends[1, 2], h1, label = "inches", height=Relative(89/100), width = 15, ticklabelsize = 20, valign=:bottom)
+
+h2 = grid_axis1(gb[1, 1], "", "Difference", trend_df[5], color_change, range_change, true, true)
+grid_axis1(gb[1, 2], "", "", trend_df[6], color_change, range_change, true, false)
+
+cb2 = Colorbar(f_trends[2, 2], h2, label = "%", height=Relative(82/100), width = 15, ticklabelsize = 20, valign=:top)
+
+rowsize!(f_trends.layout, 1, Relative(199/300))
+colsize!(f_trends.layout, 1, Relative(1))
+resize_to_layout!(f_trends)
+
+f_trends
+
+# save(plotsdir("1d/12grdded_rl.pdf"), f_trends)
 ```

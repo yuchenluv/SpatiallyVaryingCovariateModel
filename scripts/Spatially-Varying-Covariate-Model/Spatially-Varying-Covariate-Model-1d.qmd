@@ -52,6 +52,7 @@ lats_grids = c(max(lats), 30.5, 30, 29.5, 29, min(lats))
 lons_grids = c(min(lons), -94.9, -92.8, -90.7, -88.6, max(lons))
 
 # plot the subsets
+pdf("S1_Station_subsets.pdf", width = 8, height = 5)
 plot(x = lons, y = lats, pch = 19)
 abline(v = lons_grids[2])
 abline(v = lons_grids[3])
@@ -62,6 +63,7 @@ abline(h = lats_grids[2])
 abline(h = lats_grids[3])
 abline(h = lats_grids[4])
 abline(h = lats_grids[5])
+dev.off()  
 ```
 
 ```{r}
@@ -185,9 +187,11 @@ Load previous results (if MCMC was done before)
 
 ```{r}
 # file names: model_full_all_10Kruns, model_full_all_y1_10Kruns, model_full_allS1_10Kruns
+pdf("S3_traceplots.pdf", width = 9, height = 6)
 Model_full_MCMC = readRDS("../../data/processed/1d_results/model_full_all_50Kruns.Rds") # all stations
 Model_full_MCMC
 mcmc_trace(Model_full_MCMC, pars = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha", "mu0_rho", "mu0_alpha", "logs0_rho", "logs0_alpha", "xi"))
+dev.off()
 # mcmc_trace(Model_full_MCMC, pars = c("mu_rho", "mu_alpha", "logs_rho", "logs_alpha"))
 ```
 

@@ -9,7 +9,8 @@ Common functions for plotting
 # https://docs.makie.org/v0.21/tutorials/layout-tutorial
 # https://docs.makie.org/dev/reference/blocks/gridlayout
 
-function point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, point_df, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size)
+function point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, point_df, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size; 
+    marker_size = 20, xticklabelpad = 10)
     ax1a = GeoAxis(
             ax;
             dest="+proj=eqc",
@@ -23,9 +24,10 @@ function point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height
             xticklabelsize = xticks_size,
             yticklabelsize = yticks_size,
             ylabelfont=:bold,
+            xticklabelpad = xticklabelpad,
     )
     poly!(ax1a, states_geo; color=:white, strokewidth=1)
-    h1 = CairoMakie.scatter!(ax1a, point_df[!, :lon], point_df[!, :lat]; color=var, colormap=colorscheme, colorrange=range, markersize=20, strokewidth=0, strokecolor=:grey17)
+    h1 = CairoMakie.scatter!(ax1a, point_df[!, :lon], point_df[!, :lat]; color=var, colormap=colorscheme, colorrange=range, markersize=marker_size, strokewidth=0, strokecolor=:grey17)
     if with_xticks == false
         hidexdecorations!(ax1a, grid = false)
     end
@@ -36,7 +38,8 @@ function point_axis(ax, title_name, lonlims, latlims, ylabel_name, width, height
 end
 
 # when need to plot two variables
-function point_axis_2(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, point_df, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size, var2, point_df2)
+function point_axis_2(ax, title_name, lonlims, latlims, ylabel_name, width, height, states_geo, point_df, var, colorscheme, range, with_xticks, with_yticks, xticks_size, yticks_size, var2, point_df2; 
+    marker_size = 20, xticklabelpad = 10)
     ax1a = GeoAxis(
             ax;
             dest="+proj=eqc",
@@ -50,10 +53,11 @@ function point_axis_2(ax, title_name, lonlims, latlims, ylabel_name, width, heig
             xticklabelsize = xticks_size,
             yticklabelsize = yticks_size,
             ylabelfont=:bold,
+            xticklabelpad = xticklabelpad,
     )
     poly!(ax1a, states_geo; color=:white, strokewidth=1)
-    h1 = CairoMakie.scatter!(ax1a, point_df[!, :lon], point_df[!, :lat]; color=var, colormap=colorscheme, colorrange=range, markersize=20, strokewidth=0)
-    CairoMakie.scatter!(ax1a, point_df2[!, :lon], point_df2[!, :lat]; color=var2, colormap=colorscheme, colorrange=range, markersize=20, strokewidth=2, strokecolor=:red)
+    h1 = CairoMakie.scatter!(ax1a, point_df[!, :lon], point_df[!, :lat]; color=var, colormap=colorscheme, colorrange=range, markersize=marker_size, strokewidth=0)
+    CairoMakie.scatter!(ax1a, point_df2[!, :lon], point_df2[!, :lat]; color=var2, colormap=colorscheme, colorrange=range, markersize=marker_size, strokewidth=2, strokecolor=:red)
     if with_xticks == false
         hidexdecorations!(ax1a, grid = false)
     end
@@ -73,6 +77,8 @@ function plot_time_series(years, city_title, dists_ts; credible_interval = 0.95,
         ylabel = y_label,
         legend = lengend_loc,
         title = city_title,
+        titlefontsize = 12,
+        ylim = (10, 26),
     )
 
     qup = 1 - (1 - credible_interval) / 2
@@ -125,13 +131,13 @@ function plot_time_series(years, city_title, dists_ts; credible_interval = 0.95,
         color = :blue,
         label = "RCP6",
         linewidth = 2,
-        linestyle = :dash
+        linestyle = :dot
     )
 
     if Atlas14 >= 0
         hline!(
             [Atlas14],
-            linestyle = :dash,
+            linestyle = :dot,
             linewidth = 2,
             color = :red,
             label = "Atlas 14",
@@ -216,6 +222,45 @@ function plot_return_period(
 end
 
 """plot gridded estimates"""
+
+function grid_axis(ax, title_name, lonlims, latlims, ylabel_name, 
+    lons_transformed, lats_transformed,
+    width, height, states_geo, point_df, var_transformed, colorscheme, range, 
+    with_xticks, with_yticks, xticks_size, yticks_size; 
+    marker_size = 20, xticklabelpad = 10)
+    ax1a = GeoAxis(
+            ax;
+            dest="+proj=eqc",
+            title=title_name,
+            lonlims=lonlims,
+            latlims=latlims, 
+            ylabel = ylabel_name,
+            yticks = [29, 30, 31],
+            width = width,
+            height = height,
+            xticklabelsize = xticks_size,
+            yticklabelsize = yticks_size,
+            ylabelfont=:bold,
+            xticklabelpad = xticklabelpad,
+    )
+    poly!(ax1a, states_geo; color=:white, strokewidth=1)
+    h1 = CairoMakie.heatmap!(
+            ax1a,
+            lons_transformed,
+            lats_transformed,
+            var_transformed,
+            colormap = colorscheme,
+            colorrange = range,
+        )
+
+    if with_xticks == false
+        hidexdecorations!(ax1a, grid = false)
+    end
+    if with_yticks == false
+        hideydecorations!(ax1a, grid = false)
+    end
+    return h1
+end
 
 function map_grids(
     point_df,
@@ -335,4 +380,31 @@ function map_grids_subplots(
         poly!(ga, states_geo, edgecolor = :gray, strokewidth = 1, color = :transparent)
     end
     return f
+end
+
+
+"""Function to filter inland grids"""
+
+function check_inland(coord)
+    mask = GeoDatasets.LandSeaMask()
+    if GeoDatasets.is_land(mask, coord[2], coord[1])
+        return true
+    else
+        return false
+    end
+end
+
+
+"""To plot boxplots"""
+
+function rl_boxplot_data(i_s, i_m, dists, n_sim, p)
+    # i_s: station index
+    # i_m: model index
+    # dists: estimated gev distributions
+    # n_sim: number of total simulations
+    rl_boxplot = rand(n_sim, 3)
+    rl_boxplot[:, 1] = quantile.(dists, p)
+    rl_boxplot[:, 2] .= i_s
+    rl_boxplot[:, 3] .= i_m
+    return rl_boxplot
 end

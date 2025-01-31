@@ -38,6 +38,8 @@ include(scriptsdir("plot_util.jl"));
 # Load data
 
 ```{julia}
+#| code-fold: true
+
 # all the raw data, including years, prcp and covariates
 raw_data_all = DataFrame(CSV.File(datadir("processed/raw_1d/GHCN_daily_30y.csv")))
 
@@ -66,6 +68,8 @@ n_stations = size(raw_stations)[1];
 Some general variables
 
 ```{julia}
+#| code-fold: true
+
 # number of MCMC simulations
 n_sim = 20000;
 ```
@@ -75,6 +79,10 @@ n_sim = 20000;
 ## Pooled Stationary Model
 
 ```{julia}
+#| code-fold: true
+
+#| code-fold: true
+
 mu_rho_s_all, mu_alpha_s_all, logs_rho_s_all, logs_alpha_s_all, xi_s_all, mu_s_all, logs_s_all = read_MCMC_results_S("processed/1d_results/model_S_all_10Kruns.csv", n_stations)
 mu_rho_s_y1, mu_alpha_s_y1, logs_rho_s_y1, logs_alpha_s_y1, xi_s_y1, mu_s_y1, logs_s_y1 = read_MCMC_results_S("processed/1d_results/model_S_y1_10Kruns.csv", n_stations)
 mu_rho_s_y2, mu_alpha_s_y2, logs_rho_s_y2, logs_alpha_s_y2, xi_s_y2, mu_s_y2, logs_s_y2 = read_MCMC_results_S("processed/1d_results/model_S_y2_10Kruns.csv", n_stations);
@@ -83,6 +91,8 @@ mu_rho_s_y2, mu_alpha_s_y2, logs_rho_s_y2, logs_alpha_s_y2, xi_s_y2, mu_s_y2, lo
 ## Nonpooled Nonstationary Model
 
 ```{julia}
+#| code-fold: true
+
 mu0_N_all, logs0_N_all, xi_N_all, mu_beta_N_all, logs_beta_N_all = read_MCMC_results_N("processed/1d_results/model_N_all_10Kruns.csv", n_stations)
 mu0_N_y1, logs0_N_y1, xi_N_y1, mu_beta_N_y1, logs_beta_N_y1 = read_MCMC_results_N("processed/1d_results/model_N_y1_10Kruns.csv", n_stations)
 mu0_N_y2, logs0_N_y2, xi_N_y2, mu_beta_N_y2, logs_beta_N_y2 = read_MCMC_results_N("processed/1d_results/model_N_y2_10Kruns.csv", n_stations);
@@ -91,6 +101,8 @@ mu0_N_y2, logs0_N_y2, xi_N_y2, mu_beta_N_y2, logs_beta_N_y2 = read_MCMC_results_
 ## Spatially Varying Covariate Model
 
 ```{julia}
+#| code-fold: true
+
 mu_rho, mu_alpha, logs_rho, logs_alpha, mu0_rho, mu0_alpha, logs0_rho, logs0_alpha, xi_all, μ_beta_all, logσ_beta_all, μ0_all, logσ0_all = read_MCMC_results_full_diffRho("processed/1d_results/model_full_all_10Kruns.csv", n_stations)
 mu_rho_y1, mu_alpha_y1, logs_rho_y1, logs_alpha_y1, mu0_rho_y1, mu0_alpha_y1, logs0_rho_y1, logs0_alpha_y1, xi_y1, μ_beta_y1, logσ_beta_y1, μ0_y1, logσ0_y1 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_ally1_10Kruns.csv", n_stations)
 mu_rho_y2, mu_alpha_y2, logs_rho_y2, logs_alpha_y2, mu0_rho_y2, mu0_alpha_y2, logs0_rho_y2, logs0_alpha_y2, xi_y2, μ_beta_y2, logσ_beta_y2, μ0_y2, logσ0_y2 = read_MCMC_results_full_diffRho("processed/1d_results/model_full_ally2_10Kruns.csv", n_stations);
@@ -99,12 +111,16 @@ mu_rho_y2, mu_alpha_y2, logs_rho_y2, logs_alpha_y2, mu0_rho_y2, mu0_alpha_y2, lo
 ## for the excluded even (odd) years
 
 ```{julia}
+#| code-fold: true
+
 # used variables for QS calculation
 obs = raw_prcp ./ 25.4
 p_all = [0.9, 0.98, 0.99]
 ```
 
 ```{julia}
+#| code-fold: true
+
 # estimate with odd years
 # validate for even years
 obs_y1 = (raw_prcp ./ 25.4)[(1:length(years))[2:2:end], :]
@@ -113,7 +129,7 @@ log_CO2_y1 = log_CO2[(1:length(years))[2:2:end]]
 # estimate with even years
 # validate for odd years
 obs_y2 = (raw_prcp ./ 25.4)[(1:length(years))[1:2:end], :]
-log_CO2_y2 = log_CO2[(1:length(years))[1:2:end]]
+log_CO2_y2 = log_CO2[(1:length(years))[1:2:end]];
 ```
 
 # logarithmic score
@@ -121,25 +137,37 @@ log_CO2_y2 = log_CO2[(1:length(years))[1:2:end]]
 For stationary model (Pooled Stationary Model)
 
 ```{julia}
+#| code-fold: false
+
 logs_S_y1 = logs_S(mu_s_y1, logs_s_y1, xi_s_y1, obs_y1)
 logs_S_y2 = logs_S(mu_s_y2, logs_s_y2, xi_s_y2, obs_y2)
 logs_S_result = (logs_S_y1 + logs_S_y2) / (sum(!ismissing(x) for x in eachcol(obs) for x in x))
+
+print("LogS for the Pooled Stationary Model is $logs_S_result")
 ```
 
 For Nonpooled Nonstationary model
 
 ```{julia}
+#| code-fold: false
+
 logs_N_y1 = logs_N(mu_beta_N_y1, logs_beta_N_y1, mu0_N_y1, logs0_N_y1, xi_N_y1, log_CO2_y1, obs_y1, "nonpooled")
 logs_N_y2 = logs_N(mu_beta_N_y2, logs_beta_N_y2, mu0_N_y2, logs0_N_y2, xi_N_y2, log_CO2_y2, obs_y2, "nonpooled")
 logs_N_result = (logs_N_y1 + logs_N_y2) / (sum(!ismissing(x) for x in eachcol(obs) for x in x))
+
+print("LogS for the Nonpooled Nonstationary Model is $logs_N_result")
 ```
 
 For the full model
 
 ```{julia}
+#| code-fold: false
+
 logs_full_y1 = logs_N(μ_beta_y1, logσ_beta_y1, μ0_y1, logσ0_y1, xi_y1, log_CO2_y1, obs_y1, "pooled")
 logs_full_y2 = logs_N(μ_beta_y2, logσ_beta_y2, μ0_y2, logσ0_y2, xi_y2, log_CO2_y2, obs_y2, "pooled")
 logs_full_result = (logs_full_y1 + logs_full_y2) / (sum(!ismissing(x) for x in eachcol(obs) for x in x))
+
+print("LogS for the Spatially Varying Covariates Model is $logs_full_result")
 ```
 
 # quantile score (QS)
@@ -147,48 +175,67 @@ logs_full_result = (logs_full_y1 + logs_full_y2) / (sum(!ismissing(x) for x in e
 for the pooled stationary model
 
 ```{julia}
+#| code-fold: false
+
 QS_s_result = [(calculate_quantile_score_S(obs_y1, p, mu_s_y1, logs_s_y1, xi_s_y1) + calculate_quantile_score_S(obs_y2, p, mu_s_y2, logs_s_y2, xi_s_y2)) / sum(!ismissing(x) for x in eachcol(obs) for x in x) for p in p_all]
+
+print("QS for the Pooled Stationary Model is $QS_s_result")
 ```
 
 for the nonpooled nonstationary model
 
 ```{julia}
+#| code-fold: false
+
 QS_N_result = [(calculate_quantile_score_N(obs_y1, p, mu_beta_N_y1, logs_beta_N_y1, mu0_N_y1, logs0_N_y1, xi_N_y1, log_CO2_y1, "nonpooled") + calculate_quantile_score_N(obs_y2, p, mu_beta_N_y2, logs_beta_N_y2, mu0_N_y2, logs0_N_y2, xi_N_y2, log_CO2_y2, "nonpooled")) / sum(!ismissing(x) for x in eachcol(obs) for x in x) for p in p_all]
+
+print("QS for the Nonpooled Nonstationary Model is $QS_N_result")
 ```
 
 for the full model
 
 ```{julia}
+#| code-fold: false
+
 QS_full_result = [(calculate_quantile_score_N(obs_y1, p, μ_beta_y1, logσ_beta_y1, μ0_y1, logσ0_y1, xi_y1, log_CO2_y1, "pooled") + calculate_quantile_score_N(obs_y2, p, μ_beta_y2, logσ_beta_y2, μ0_y2, logσ0_y2, xi_y2, log_CO2_y2, "pooled")) / sum(!ismissing(x) for x in eachcol(obs) for x in x) for p in p_all]
+
+print("QS for the Spatially Varying Covariates Model is $QS_full_result")
 ```
 
 # CRPS
 
-```{julia}
-obs_min = minimum(maximum.(skipmissing.(eachcol(obs))))
-obs_max = maximum(maximum.(skipmissing.(eachcol(obs))))
-```
-
 for the Pooled Stationary Model
 
 ```{julia}
+#| code-fold: false
+
 CRPS_S_y1 = crps_S(mu_s_y1, logs_s_y1, xi_s_y1, obs_y1)
 CRPS_S_y2 = crps_S(mu_s_y2, logs_s_y2, xi_s_y2, obs_y2)
 CRPS_S_result = (CRPS_S_y1 + CRPS_S_y2) / (sum(!ismissing(x) for x in eachcol(obs) for x in x))
+
+print("CRPS for the Pooled Stationary Model is $CRPS_s_result")
 ```
 
 for the Nonpooled Nonstatioanry Model
 
 ```{julia}
+#| code-fold: false
+
 CRPS_N_y1 = crps_N(mu_beta_N_y1, logs_beta_N_y1, mu0_N_y1, logs0_N_y1, xi_N_y1, log_CO2_y1, obs_y1, "nonpooled")
 CRPS_N_y2 = crps_N(mu_beta_N_y2, logs_beta_N_y2, mu0_N_y2, logs0_N_y2, xi_N_y2, log_CO2_y2, obs_y2, "nonpooled")
 CRPS_N_result = (CRPS_N_y1 + CRPS_N_y2) / (sum(!ismissing(x) for x in eachcol(obs) for x in x))
+
+print("CRPS for the Nonpooled Nonstationary Model is $CRPS_N_result")
 ```
 
 for the Spatially Varying Covariates Model
 
 ```{julia}
+#| code-fold: false
+
 CRPS_full_y1 = crps_N(μ_beta_y1, logσ_beta_y1, μ0_y1, logσ0_y1, xi_y1, log_CO2_y1, obs_y1, "pooled")
 CRPS_full_y2 = crps_N(μ_beta_y2, logσ_beta_y2, μ0_y2, logσ0_y2, xi_y2, log_CO2_y2, obs_y2, "pooled")
 CRPS_full_result = (CRPS_full_y1 + CRPS_full_y2) / (sum(!ismissing(x) for x in eachcol(obs) for x in x))
+
+print("CRPS for the Spatially Varying Covariates Model is $CRPS_full_result")
 ```

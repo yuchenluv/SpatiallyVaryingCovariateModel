@@ -2,7 +2,7 @@
 
 julia_version = "1.9.3"
 manifest_format = "2.0"
-project_hash = "2e93caa58aea06fe29d95912711d0d0e41fc20bd"
+project_hash = "f3c0d0d556c3a4e55699dedb016cb982496320ca"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -272,6 +272,12 @@ version = "0.6.3"
 git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
 uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 version = "4.1.1"
+
+[[deps.DBFTables]]
+deps = ["Dates", "Printf", "Tables", "WeakRefStrings"]
+git-tree-sha1 = "f9f4947bc76066221a9308faff2cd2af9287ae56"
+uuid = "75c7ada1-017a-5fb6-b8c7-2125ff2d6c93"
+version = "1.2.6"
 
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
@@ -615,6 +621,12 @@ deps = ["Distances", "Distributions", "ElasticArrays", "ElasticPDMats", "FastGau
 git-tree-sha1 = "31749ff6868caf6dd50902eec652a724071dbed3"
 uuid = "891a1506-143c-57d2-908e-e1f8e92e6de9"
 version = "0.12.5"
+
+[[deps.GeoDatasets]]
+deps = ["CodecZlib", "GeoInterface", "Printf", "RemoteFiles", "Shapefile", "ZipFile"]
+git-tree-sha1 = "884fd4ce6e5c25a491a2ed0623017b82c31deec2"
+uuid = "ddc7317b-88db-5cb5-a849-8449e5df04f9"
+version = "0.1.8"
 
 [[deps.GeoFormatTypes]]
 git-tree-sha1 = "59107c179a586f0fe667024c5eb7033e81333271"
@@ -1543,6 +1555,12 @@ git-tree-sha1 = "ffdaf70d81cf6ff22c2b6e733c900c3321cab864"
 uuid = "05181044-ff0b-4ac5-8273-598c1e38db00"
 version = "1.0.1"
 
+[[deps.RemoteFiles]]
+deps = ["Dates", "FileIO", "HTTP"]
+git-tree-sha1 = "9a0241c411af313068188e89ebf322cb49eedf52"
+uuid = "cbe49d4c-5af1-5b60-bb70-0a60aa018e1b"
+version = "0.5.0"
+
 [[deps.Requires]]
 deps = ["UUIDs"]
 git-tree-sha1 = "838a3a4188e2ded87a4f9f184b4b0d78a1e91cb7"
@@ -1620,6 +1638,12 @@ deps = ["ColorTypes", "FixedPointNumbers", "GeometryBasics", "LinearAlgebra", "O
 git-tree-sha1 = "79123bc60c5507f035e6d1d9e563bb2971954ec8"
 uuid = "65257c39-d410-5151-9873-9b3e5be5013e"
 version = "0.4.1"
+
+[[deps.Shapefile]]
+deps = ["DBFTables", "Extents", "GeoFormatTypes", "GeoInterface", "GeoInterfaceRecipes", "OrderedCollections", "RecipesBase", "Tables"]
+git-tree-sha1 = "c3c0d8832bade902c8a09f34c5bbf24d6448773e"
+uuid = "8e980c4a-a4fe-5da2-b3a7-4b4b0353a2f4"
+version = "0.10.0"
 
 [[deps.SharedArrays]]
 deps = ["Distributed", "Mmap", "Random", "Serialization"]
@@ -2113,6 +2137,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "e92a1a012a10506618f10b7047e478403a046c77"
 uuid = "c5fb5394-a638-5e4d-96e5-b29de1b5cf10"
 version = "1.5.0+0"
+
+[[deps.ZipFile]]
+deps = ["Libdl", "Printf", "Zlib_jll"]
+git-tree-sha1 = "f492b7fe1698e623024e873244f10d89c95c340a"
+uuid = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
+version = "0.10.1"
 
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
