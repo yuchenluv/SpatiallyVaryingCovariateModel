@@ -2,3 +2,4 @@ data/processed
 data/raw
 scripts/Nonpooled-Nonstationary-Model/.RData
 plots/1d
+.vscode

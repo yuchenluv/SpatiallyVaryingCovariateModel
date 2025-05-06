@@ -71,7 +71,10 @@ Some general variables
 #| code-fold: true
 
 # number of MCMC simulations
-n_sim = 20000;
+n_sim = 20000
+
+obs_min = minimum(maximum.(skipmissing.(eachcol(obs))))
+obs_max = maximum(maximum.(skipmissing.(eachcol(obs))));
 ```
 
 # MCMC posterior results from R

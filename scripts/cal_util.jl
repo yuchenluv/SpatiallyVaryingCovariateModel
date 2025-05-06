@@ -340,7 +340,7 @@ end
 
 function crps(observation, forecast_cdf)
     integrand(y) = (forecast_cdf(y) - heaviside(y, observation))^2
-    result, _ = quadgk(integrand, obs_min, obs_max)
+    result, _ = quadgk(integrand, -Inf, Inf)
     return result
 end
 

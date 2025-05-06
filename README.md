@@ -1,51 +1,87 @@
 # Spatially Varying Covariate Model
-This repository includes the codes for the manuscript **Hierarchical Bayesian Spatial Framework Reveals Robust Increasing Trends in Daily Extreme Rainfall Across the Western Gulf Coast**
+This repository includes the codes for the manuscript [Hierarchical Bayesian Spatial Framework Reveals Robust Increasing Trends in Daily Extreme Rainfall Across the Western Gulf Coast](https://arxiv.org/abs/2502.02000)
+
+## How to cite
+
+To cite our results/methods, please cite it like follows:
+
+```
+@misc{lu2025bayesianspatiotemporalnonstationarymodel,
+      title={Bayesian Spatiotemporal Nonstationary Model Quantifies Robust Increases in Daily Extreme Rainfall Across the Western Gulf Coast}, 
+      author={Yuchen Lu and Ben Seiyon Lee and James Doss-Gollin},
+      year={2025},
+      eprint={2502.02000},
+      archivePrefix={arXiv},
+      primaryClass={stat.AP},
+      url={https://arxiv.org/abs/2502.02000}, 
+}
+```
 
 ## How to use
-To reproduce the results:
 
-(1) Preprocess annual maximum rainfall records and CO2 covariate with generate_data.jl, csv files are generated that could be inputs to the statistical model
+This repository contains all the code and data used in our paper, based entirely on publicly available datasets.
 
-(2) Choose the framework of interest (Pooled Stationary Model / Nonpooled Nonstationary Model / Spatially Varying Covariate Model), use the corresponding qmd file to estimate the distribution parameters, parameters are saved as csv file as well
+To reproduce our analysis, follow the steps below:
 
-(3) One could use plot_results.qmd for most plots
-For more details, readers can refer to the following descriptions of the different files
+1. **Data Preprocessing**  
+   Run `generate_data.jl` to preprocess annual maximum rainfall records and the CO₂ covariate. This will generate `.csv` files that serve as inputs to the statistical models.
 
-## Detailed descriptions
-In `scripts`
+2. **Model Estimation**  
+   Choose one of the following modeling frameworks:
+   - **Pooled Stationary Model**
+   - **Nonpooled Nonstationary Model**
+   - **Spatially Varying Covariate Model**  
+   
+   Use the corresponding `.qmd` file to estimate distribution parameters. The estimated parameters will be saved as `.csv` files.
 
-`get_data.jl`
-Functions to process AMS precipitation (from GHCN dataset) and climate covariates (CO2 as an example)
+3. **Result Visualization**  
+   Use `plot_results.qmd` to generate most of the plots used in the paper.
 
-`params.jl`
-Constraints for extracting AMS precipitation
+For more details, please refer to the descriptions of individual files in this repository.
 
-`get_Altas14.jl`
-Web scrape the Atlas 14 IDF estimates for comparison
+## File Descriptions
 
-`cal_util.jl`
-Utility functions to process estimated distribution parameters to return level estimates, also functions for the validation metrics
+All core scripts are located in the `scripts/` directory. Below is a brief description of each file:
 
-`plot_util.jl`
-Utility functions for plotting
+### Data Processing
+- `get_data.jl`  
+  Functions to process annual maximum series (AMS) precipitation from the GHCN dataset and extract climate covariates (e.g., CO₂).
 
-`generate_data.jl`
-Transfer data to be csv file, and as input to the R stan model
+- `params.jl`  
+  Defines constraints for extracting AMS precipitation.
 
-`Nonpooled-Nonstationary-Model`
-Nonstationary model for individual stations. Stan model and R code to run the model
+- `get_Atlas14.jl`  
+  Web scraper to collect Atlas 14 IDF estimates for comparison.
 
-`Pooled-Stationary-Model`
-Spatially pooled stationary model. Stan model and R code to run the model
+- `generate_data.jl`  
+  Converts processed data into `.csv` files, which serve as inputs to the R/Stan models.
 
-`Spatially-Varying-Covariate-Model`
-The final model. Stan model and R code to run the model
+### Utilities
+- `cal_util.jl`  
+  Utility functions for transforming estimated distribution parameters into return level estimates, and computing validation metrics.
 
-`plot_results.qmd`
-This file contains codes that process the simulation results and generate the plots shown in the paper
+- `plot_util.jl`  
+  Utility functions for generating plots.
 
-`validation_metrics.qmd`
-Different validation metrics for the above three frameworks
+### Modeling Frameworks
+- `Nonpooled-Nonstationary-Model/`  
+  Implements a nonstationary model for individual stations using Stan and R.
 
-`validation_plots.qmd`
-Validation plots including comparison with Atlas 14, cross-validation among different subsets, comparing the three frameworks
+- `Pooled-Stationary-Model/`  
+  Implements a spatially pooled stationary model using Stan and R.
+
+- `Spatially-Varying-Covariate-Model/`  
+  Implements the final model, with spatially varying covariate effects. Includes Stan and R code.
+
+### Quarto Documents
+- `plot_results.qmd`  
+  Processes simulation outputs and generates the figures shown in the paper.
+
+- `validation_metrics.qmd`  
+  Computes different validation metrics across the three modeling frameworks.
+
+- `validation_plots.qmd`  
+  Creates validation plots, including:
+  - Comparisons with Atlas 14
+  - Cross-validation among data subsets
+  - Comparison across modeling frameworks

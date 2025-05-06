@@ -268,12 +268,12 @@ elems = [[MarkerElement(color = col, marker=:circle, markersize = 15,
 axislegend(a, elems, ["Estimates using all stations", "Out of sample estimates"]; position=:rt)
 
 a.xlabel = "Station"
-a.ylabel = "100 year return level (inches)"
+a.ylabel = "100-year return level (inches)"
 a.xticks=(1:10, ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
 
 f
 
-# save(plotsdir("1d/4box_plots_full.pdf"), f)
+save(plotsdir("1d/4box_plots_full.pdf"), f)
 ```
 
 ## out of sample predictability (for all stations)
@@ -361,9 +361,9 @@ point_axis3(ga[2, 2], sub3_index, gev_sub3_OFS, gev_sub3_IS, "Subset 3", "", 0.9
 point_axis3(ga[3, 1], sub4_index, gev_sub4_OFS, gev_sub4_IS, "Subset 4", "", 0.99, true, true)
 point_axis3(ga[3, 2], sub5_index, gev_sub5_OFS, gev_sub5_IS, "Subset 5", "", 0.99, true, false)
 
-cb1 = Colorbar(f_cross[1, 2], h1, label = "100 year return level (inches)", height=Relative(81/100), width = 15, ticklabelsize = 20)
+cb1 = Colorbar(f_cross[1, 2], h1, label = "100-year return level (inches)", height=Relative(81/100), width = 15, ticklabelsize = 20)
 
 f_cross
 
-# save(plotsdir("1d/5rl100_CV.pdf"), f_cross)
+save(plotsdir("1d/5rl100_CV.pdf"), f_cross)
 ```

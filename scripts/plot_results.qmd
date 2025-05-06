@@ -411,9 +411,9 @@ ts_dist_NOLA = [get_dist_MCMC_full(index_cities[2], μ_beta_all, logσ_beta_all,
 ts_dist_Gal = [get_dist_MCMC_full(index_cities[3], μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, x) for x in log_CO2]
 ts_dist_Mob = [get_dist_MCMC_full(index_cities[4], μ_beta_all, logσ_beta_all, μ0_all, logσ0_all, xi_all, x) for x in log_CO2]
 
-p_Hou = plot_time_series(vcat(years, 2050), "Houston, TX", ts_dist_Hou; x_label = "", y_label = "100 year return level [inches/d]", Atlas14 = Atlas14_rl100_1d[index_cities[1]])
+p_Hou = plot_time_series(vcat(years, 2050), "Houston, TX", ts_dist_Hou; x_label = "", y_label = "100-year return level [inches/d]", Atlas14 = Atlas14_rl100_1d[index_cities[1]])
 p_NOLA = plot_time_series(vcat(years, 2050), "New Orleans, LA", ts_dist_NOLA; x_label = "", y_label = " ", Atlas14 = Atlas14_rl100_1d[index_cities[2]], lengend_loc = false)
-p_Gal = plot_time_series(vcat(years, 2050), "Galveston, TX", ts_dist_Gal; x_label = "Year", y_label = "100 year return level [inches/d]", Atlas14 = Atlas14_rl100_1d[index_cities[3]], lengend_loc = false)
+p_Gal = plot_time_series(vcat(years, 2050), "Galveston, TX", ts_dist_Gal; x_label = "Year", y_label = "100-year return level [inches/d]", Atlas14 = Atlas14_rl100_1d[index_cities[3]], lengend_loc = false)
 p_Mob = plot_time_series(vcat(years, 2050), "Mobile, AL", ts_dist_Mob; x_label = "Year", y_label = " ", Atlas14 = Atlas14_rl100_1d[index_cities[4]], lengend_loc = false);
 
 layout = @layout [
@@ -434,7 +434,7 @@ Plots.plot!(p_ts_cities, left_margin = 10Plots.mm, bottom_margin = 5Plots.mm)
 
 p_ts_cities
 
-# save(plotsdir("1d/11p_ts_cities.pdf"), p_ts_cities)
+save(plotsdir("1d/11p_ts_cities.pdf"), p_ts_cities)
 ```
 
 ## gridded MCMC results
