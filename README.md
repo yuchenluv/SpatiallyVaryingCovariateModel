@@ -1,5 +1,5 @@
 # Spatially Varying Covariate Model
-This repository includes the codes for the manuscript [Hierarchical Bayesian Spatial Framework Reveals Robust Increasing Trends in Daily Extreme Rainfall Across the Western Gulf Coast](https://arxiv.org/abs/2502.02000)
+This repository includes the codes for the manuscript [Hierarchical Bayesian Spatial Framework Reveals Robust Increasing Trends in Daily Extreme Rainfall Across the Western Gulf Coast](https://arxiv.org/abs/2502.02000). The paper is currently under review, so this repository is preliminary and subject to updates.
 
 ## How to cite
 
